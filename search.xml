@@ -1,47 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
-    <title>SQL-违反表的唯一约束条件（主键冲突）问题</title>
-    <url>/2024/06/03/SQL-%E4%B8%BB%E9%94%AE%E5%86%B2%E7%AA%81%E9%97%AE%E9%A2%98/</url>
-    <content><![CDATA[<h2 id="问题"><a href="#问题" class="headerlink" title="问题"></a>问题</h2><p>实际的项目中，采集上游数据到数据集市的贴源层 &gt;&gt; 跑数据转换任务，将数据写入到我们的业务表，在跑转换任务的时候，时不时会报错主键冲突。转换里，通常写着<code>insert</code> <code>update</code> 语句，当向表执行插入和更新操作，时不时出现报错：违反表的唯一约束条件。</p>
-<img src="/2024/06/03/SQL-%E4%B8%BB%E9%94%AE%E5%86%B2%E7%AA%81%E9%97%AE%E9%A2%98/image-20240603204053362.png" class="" title="image-20240603204053362">
+    <title>Hello World</title>
+    <url>/2024/06/01/hello-world/</url>
+    <content><![CDATA[<p>Welcome to <a href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
+<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure>
 
-<p>因为在实际业务中，中间层或者业务层表，通常情况下，是具有主键的（可能是单一主键，可能是复合主键）。</p>
-<h2 id="常见的两种情况"><a href="#常见的两种情况" class="headerlink" title="常见的两种情况"></a>常见的两种情况</h2><p>1）目标表里已经有了一条数据A，但是转换任务又往目标表里写入一条数据A，导致的报错；</p>
-<p>2）目标表里没有数据，但是转换里，使用的关联条件产生了多条重复数据，导致的报错。</p>
-<p>根据这两种情况对数据进行排查，看看是哪些数据重复了。</p>
-<h2 id="思路"><a href="#思路" class="headerlink" title="思路"></a>思路</h2><p>1.根据报错的主键名称，查找该索引名是哪张表的主键名</p>
-<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">select</span> <span class="operator">*</span></span><br><span class="line">  <span class="keyword">from</span> all_indexes a</span><br><span class="line"> <span class="keyword">where</span> a.index_name <span class="operator">=</span> <span class="string">&#x27;报错的主键名&#x27;</span>;</span><br></pre></td></tr></table></figure>
+<p>More info: <a href="https://hexo.io/docs/writing.html">Writing</a></p>
+<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
 
-<img src="/2024/06/03/SQL-%E4%B8%BB%E9%94%AE%E5%86%B2%E7%AA%81%E9%97%AE%E9%A2%98/image-20240603212340949.png" class="" title="image-20240603212340949">
+<p>More info: <a href="https://hexo.io/docs/server.html">Server</a></p>
+<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
 
+<p>More info: <a href="https://hexo.io/docs/generating.html">Generating</a></p>
+<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
 
-
-<p>2.查看该表，查看该主键由哪些字段组成</p>
-<img src="/2024/06/03/SQL-%E4%B8%BB%E9%94%AE%E5%86%B2%E7%AA%81%E9%97%AE%E9%A2%98/image-20240603212455621.png" class="" title="image-20240603212455621">
-
-
-
-<p>3.对于第一种情况，根据这些字段，将目标表与转换里源表进行<code>join</code>，对索引字段进行<code>count</code>，查看是否有重复数据</p>
-<p>例如这张表在转换里源表（from的表）为 <code>ct.st_xxx</code>，那么可以如下，查到重复的数据</p>
-<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">select</span> a.contract_no, a.stock_account, <span class="built_in">count</span>(<span class="operator">*</span>)</span><br><span class="line">  <span class="keyword">from</span> sett.t_ref_contract a</span><br><span class="line">  <span class="keyword">join</span> ct.st_xxx b</span><br><span class="line">    <span class="keyword">on</span> a.contract_no <span class="operator">=</span> b.jys <span class="comment">-- 关联字段</span></span><br><span class="line">   <span class="keyword">and</span> a.stock_account <span class="operator">=</span> b.zqzh</span><br><span class="line"> <span class="keyword">group</span> <span class="keyword">by</span> a.contract_no, a.stock_account</span><br><span class="line"><span class="keyword">having</span> <span class="built_in">count</span>(<span class="operator">*</span>) <span class="operator">&gt;</span> <span class="number">1</span>;</span><br></pre></td></tr></table></figure>
-
-<p>然后，对比该数据，是否完全一致（因为数据可能出现只有主键字段是相同的，但是其他字段不同的情况）</p>
-<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">select</span> a.<span class="operator">*</span></span><br><span class="line">  <span class="keyword">from</span> sett.t_ref_contract a</span><br><span class="line">  <span class="keyword">join</span> ct.st_xxx b</span><br><span class="line">    <span class="keyword">on</span> a.contract_no <span class="operator">=</span> b.jys <span class="comment">-- 关联字段</span></span><br><span class="line">   <span class="keyword">and</span> a.stock_account <span class="operator">=</span> b.zqzh</span><br><span class="line"> <span class="keyword">where</span> a.contract_no <span class="operator">=</span> <span class="string">&#x27;查到的contract_no&#x27;</span></span><br><span class="line">   <span class="keyword">and</span> a.stock_account <span class="operator">=</span> <span class="string">&#x27;查到的stock_account&#x27;</span></span><br><span class="line"> <span class="keyword">group</span> <span class="keyword">by</span> a.contract_no, a.stock_account;</span><br></pre></td></tr></table></figure>
-
-<p>3.1）若一致，则可将目标表里的数据删掉</p>
-<p>3.2）若不一致，应咨询业务，它们是否有区别，根据业务沟通后的方案，将数据备份后，对其更改或删除等操作</p>
-<p>4.对于第二种情况，则需要看转换里，它的<code>insert</code> 或者<code>update</code> 的逻辑，类似：</p>
-<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">insert</span> table_a (</span><br><span class="line">	col_1,</span><br><span class="line">    col_2,</span><br><span class="line">    ...</span><br><span class="line">)</span><br><span class="line"><span class="keyword">select</span> col_a,</span><br><span class="line">	   col_b,</span><br><span class="line">	   ...</span><br><span class="line">  <span class="keyword">from</span> table_b t1</span><br><span class="line">  <span class="keyword">join</span> table_c t2</span><br><span class="line">    <span class="keyword">on</span> t1.col_a <span class="operator">=</span> t2.col_a</span><br><span class="line">   <span class="keyword">and</span> t1.col_b <span class="operator">=</span> t2.col_b;</span><br></pre></td></tr></table></figure>
-
-<p>然后对关联条件进行检查，看看是不是关联条件出现了 <code>1:N</code> <code>N:N</code> 的情况，如果是，则根据代码的逻辑，对该数据产生的原因进行定位，根据实际情况进行解决。</p>
+<p>More info: <a href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
 ]]></content>
-      <categories>
-        <category>数据库</category>
-      </categories>
-      <tags>
-        <tag>SQL</tag>
-      </tags>
   </entry>
   <entry>
     <title>SQL-日期时间转换问题</title>
@@ -114,21 +89,46 @@
       </tags>
   </entry>
   <entry>
-    <title>Hello World</title>
-    <url>/2024/06/01/hello-world/</url>
-    <content><![CDATA[<p>Welcome to <a href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
-<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure>
+    <title>SQL-违反表的唯一约束条件（主键冲突）问题</title>
+    <url>/2024/06/03/SQL-%E4%B8%BB%E9%94%AE%E5%86%B2%E7%AA%81%E9%97%AE%E9%A2%98/</url>
+    <content><![CDATA[<h2 id="问题"><a href="#问题" class="headerlink" title="问题"></a>问题</h2><p>实际的项目中，采集上游数据到数据集市的贴源层 &gt;&gt; 跑数据转换任务，将数据写入到我们的业务表，在跑转换任务的时候，时不时会报错主键冲突。转换里，通常写着<code>insert</code> <code>update</code> 语句，当向表执行插入和更新操作，时不时出现报错：违反表的唯一约束条件。</p>
+<img src="/2024/06/03/SQL-%E4%B8%BB%E9%94%AE%E5%86%B2%E7%AA%81%E9%97%AE%E9%A2%98/image-20240603204053362.png" class="" title="image-20240603204053362">
 
-<p>More info: <a href="https://hexo.io/docs/writing.html">Writing</a></p>
-<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
+<p>因为在实际业务中，中间层或者业务层表，通常情况下，是具有主键的（可能是单一主键，可能是复合主键）。</p>
+<h2 id="常见的两种情况"><a href="#常见的两种情况" class="headerlink" title="常见的两种情况"></a>常见的两种情况</h2><p>1）目标表里已经有了一条数据A，但是转换任务又往目标表里写入一条数据A，导致的报错；</p>
+<p>2）目标表里没有数据，但是转换里，使用的关联条件产生了多条重复数据，导致的报错。</p>
+<p>根据这两种情况对数据进行排查，看看是哪些数据重复了。</p>
+<h2 id="思路"><a href="#思路" class="headerlink" title="思路"></a>思路</h2><p>1.根据报错的主键名称，查找该索引名是哪张表的主键名</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">select</span> <span class="operator">*</span></span><br><span class="line">  <span class="keyword">from</span> all_indexes a</span><br><span class="line"> <span class="keyword">where</span> a.index_name <span class="operator">=</span> <span class="string">&#x27;报错的主键名&#x27;</span>;</span><br></pre></td></tr></table></figure>
 
-<p>More info: <a href="https://hexo.io/docs/server.html">Server</a></p>
-<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
+<img src="/2024/06/03/SQL-%E4%B8%BB%E9%94%AE%E5%86%B2%E7%AA%81%E9%97%AE%E9%A2%98/image-20240603212340949.png" class="" title="image-20240603212340949">
 
-<p>More info: <a href="https://hexo.io/docs/generating.html">Generating</a></p>
-<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
 
-<p>More info: <a href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
+
+<p>2.查看该表，查看该主键由哪些字段组成</p>
+<img src="/2024/06/03/SQL-%E4%B8%BB%E9%94%AE%E5%86%B2%E7%AA%81%E9%97%AE%E9%A2%98/image-20240603212455621.png" class="" title="image-20240603212455621">
+
+
+
+<p>3.对于第一种情况，根据这些字段，将目标表与转换里源表进行<code>join</code>，对索引字段进行<code>count</code>，查看是否有重复数据</p>
+<p>例如这张表在转换里源表（from的表）为 <code>ct.st_xxx</code>，那么可以如下，查到重复的数据</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">select</span> a.contract_no, a.stock_account, <span class="built_in">count</span>(<span class="operator">*</span>)</span><br><span class="line">  <span class="keyword">from</span> sett.t_ref_contract a</span><br><span class="line">  <span class="keyword">join</span> ct.st_xxx b</span><br><span class="line">    <span class="keyword">on</span> a.contract_no <span class="operator">=</span> b.jys <span class="comment">-- 关联字段</span></span><br><span class="line">   <span class="keyword">and</span> a.stock_account <span class="operator">=</span> b.zqzh</span><br><span class="line"> <span class="keyword">group</span> <span class="keyword">by</span> a.contract_no, a.stock_account</span><br><span class="line"><span class="keyword">having</span> <span class="built_in">count</span>(<span class="operator">*</span>) <span class="operator">&gt;</span> <span class="number">1</span>;</span><br></pre></td></tr></table></figure>
+
+<p>然后，对比该数据，是否完全一致（因为数据可能出现只有主键字段是相同的，但是其他字段不同的情况）</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">select</span> a.<span class="operator">*</span></span><br><span class="line">  <span class="keyword">from</span> sett.t_ref_contract a</span><br><span class="line">  <span class="keyword">join</span> ct.st_xxx b</span><br><span class="line">    <span class="keyword">on</span> a.contract_no <span class="operator">=</span> b.jys <span class="comment">-- 关联字段</span></span><br><span class="line">   <span class="keyword">and</span> a.stock_account <span class="operator">=</span> b.zqzh</span><br><span class="line"> <span class="keyword">where</span> a.contract_no <span class="operator">=</span> <span class="string">&#x27;查到的contract_no&#x27;</span></span><br><span class="line">   <span class="keyword">and</span> a.stock_account <span class="operator">=</span> <span class="string">&#x27;查到的stock_account&#x27;</span></span><br><span class="line"> <span class="keyword">group</span> <span class="keyword">by</span> a.contract_no, a.stock_account;</span><br></pre></td></tr></table></figure>
+
+<p>3.1）若一致，则可将目标表里的数据删掉</p>
+<p>3.2）若不一致，应咨询业务，它们是否有区别，根据业务沟通后的方案，将数据备份后，对其更改或删除等操作</p>
+<p>4.对于第二种情况，则需要看转换里，它的<code>insert</code> 或者<code>update</code> 的逻辑，类似：</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">insert</span> table_a (</span><br><span class="line">	col_1,</span><br><span class="line">    col_2,</span><br><span class="line">    ...</span><br><span class="line">)</span><br><span class="line"><span class="keyword">select</span> col_a,</span><br><span class="line">	   col_b,</span><br><span class="line">	   ...</span><br><span class="line">  <span class="keyword">from</span> table_b t1</span><br><span class="line">  <span class="keyword">join</span> table_c t2</span><br><span class="line">    <span class="keyword">on</span> t1.col_a <span class="operator">=</span> t2.col_a</span><br><span class="line">   <span class="keyword">and</span> t1.col_b <span class="operator">=</span> t2.col_b;</span><br></pre></td></tr></table></figure>
+
+<p>然后对关联条件进行检查，看看是不是关联条件出现了 <code>1:N</code> <code>N:N</code> 的情况，如果是，则根据代码的逻辑，对该数据产生的原因进行定位，根据实际情况进行解决。</p>
 ]]></content>
+      <categories>
+        <category>数据库</category>
+      </categories>
+      <tags>
+        <tag>SQL</tag>
+      </tags>
   </entry>
 </search>
