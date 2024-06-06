@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/touxiang.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/touxiang.ico">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/touxiang.ico">
+  <link rel="mask-icon" href="/images/touxiang.ico" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha256-XOqroi11tY4EFQMR9ZYwZWKj5ZXiftSx36RRuC3anlA=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"weiqifun.github.io","root":"/","images":"/images","scheme":"Pisces","darkmode":false,"version":"8.20.0","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"copycode":{"enable":true,"style":"default","show_result":true},"fold":{"enable":false,"height":500},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="信创类产品的实施部署从 0 到 1 ，实施部署前期需要了解什么，作为跟客户沟通的技术知识保障...">
+<meta property="og:type" content="article">
+<meta property="og:title" content="实施部署-信创项目环境搭建准备（一）">
+<meta property="og:url" content="https://weiqifun.github.io/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%BF%A1%E5%88%9B%E9%A1%B9%E7%9B%AE%E5%AE%9E%E6%96%BD%E5%87%86%E5%A4%87/">
+<meta property="og:site_name" content="WeiQi Blog">
+<meta property="og:description" content="信创类产品的实施部署从 0 到 1 ，实施部署前期需要了解什么，作为跟客户沟通的技术知识保障...">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%BF%A1%E5%88%9B%E9%A1%B9%E7%9B%AE%E5%AE%9E%E6%96%BD%E5%87%86%E5%A4%87/image-20240606222536306.png">
+<meta property="article:published_time" content="2024-06-06T13:41:26.000Z">
+<meta property="article:modified_time" content="2024-06-06T16:09:36.764Z">
+<meta property="article:author" content="Wei Qi">
+<meta property="article:tag" content="实施">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://weiqifun.github.io/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%BF%A1%E5%88%9B%E9%A1%B9%E7%9B%AE%E5%AE%9E%E6%96%BD%E5%87%86%E5%A4%87/image-20240606222536306.png">
+
+
+<link rel="canonical" href="https://weiqifun.github.io/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%BF%A1%E5%88%9B%E9%A1%B9%E7%9B%AE%E5%AE%9E%E6%96%BD%E5%87%86%E5%A4%87/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://weiqifun.github.io/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%BF%A1%E5%88%9B%E9%A1%B9%E7%9B%AE%E5%AE%9E%E6%96%BD%E5%87%86%E5%A4%87/","path":"2024/06/06/实施部署-信创项目实施准备/","title":"实施部署-信创项目环境搭建准备（一）"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>实施部署-信创项目环境搭建准备（一） | WeiQi Blog</title>
+  
+
+
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">WeiQi Blog</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">前进 & 思考</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%89%8D%E8%A8%80"><span class="nav-number">1.</span> <span class="nav-text">前言</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E4%BF%A1%E5%88%9B%E9%A1%B9%E7%9B%AE%E7%9F%A5%E8%AF%86"><span class="nav-number">1.1.</span> <span class="nav-text">1 信创项目知识</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-1-%E4%BF%A1%E5%88%9B%E8%BD%AF%E7%A1%AC%E4%BB%B6"><span class="nav-number">1.1.1.</span> <span class="nav-text">1.1 信创软硬件</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-2-%E7%A1%AE%E8%AE%A4%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%9E%B6%E6%9E%84%E4%BF%A1%E6%81%AF"><span class="nav-number">1.1.2.</span> <span class="nav-text">1.2 确认服务器架构信息</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-3-%E7%A1%AE%E8%AE%A4%E6%9C%8D%E5%8A%A1%E5%99%A8%E5%86%85%E5%AD%98%E4%BF%A1%E6%81%AF"><span class="nav-number">1.1.3.</span> <span class="nav-text">1.3 确认服务器内存信息</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-4-%E7%A1%AE%E8%AE%A4%E6%95%B0%E6%8D%AE%E5%BA%93%E5%8F%82%E6%95%B0"><span class="nav-number">1.1.4.</span> <span class="nav-text">1.4 确认数据库参数</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-4-1-%E5%8F%82%E6%95%B0%E5%B8%A6%E6%9D%A5%E7%9A%84%E5%BD%B1%E5%93%8D"><span class="nav-number">1.1.4.1.</span> <span class="nav-text">1.4.1 参数带来的影响</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#1%EF%BC%89%E7%BC%96%E7%A0%81%E4%B8%8D%E4%B8%80%E8%87%B4"><span class="nav-number">1.1.4.1.1.</span> <span class="nav-text">1）编码不一致</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2%EF%BC%89%E5%A4%A7%E5%B0%8F%E5%86%99%E6%95%8F%E6%84%9F%E4%B8%8D%E4%B8%80%E8%87%B4"><span class="nav-number">1.1.4.1.2.</span> <span class="nav-text">2）大小写敏感不一致</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#1-4-2-%E5%85%B6%E4%BB%96%E5%8F%AF%E8%83%BD%E9%9C%80%E8%A6%81%E4%BF%AE%E6%94%B9%E7%9A%84%E5%8F%82%E6%95%B0"><span class="nav-number">1.1.4.2.</span> <span class="nav-text">1.4.2 其他可能需要修改的参数</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#1%EF%BC%89COMPATIBLE-MODE"><span class="nav-number">1.1.4.2.1.</span> <span class="nav-text">1）COMPATIBLE_MODE</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E3%80%90%E4%BE%8B%E5%AD%90%E3%80%91"><span class="nav-number">1.1.4.2.1.1.</span> <span class="nav-text">【例子】</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2%EF%BC%89PK-WITH-CLUSTER"><span class="nav-number">1.1.4.2.2.</span> <span class="nav-text">2）PK_WITH_CLUSTER</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E3%80%90%E4%BE%8B%E5%AD%90%E3%80%91-1"><span class="nav-number">1.1.4.2.2.1.</span> <span class="nav-text">【例子】</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E3%80%90%E5%85%B3%E4%BA%8E%E8%81%9A%E7%B0%87%E7%B4%A2%E5%BC%95%E3%80%91"><span class="nav-number">1.1.4.2.2.2.</span> <span class="nav-text">【关于聚簇索引】</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#3%EF%BC%89CALS-AS-DECIMAL"><span class="nav-number">1.1.4.2.3.</span> <span class="nav-text">3）CALS_AS_DECIMAL</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%85%B3%E4%BA%8E%E5%8F%82%E6%95%B0%E4%BF%AE%E6%94%B9%E6%96%B9%E5%BC%8F"><span class="nav-number">1.1.4.2.4.</span> <span class="nav-text">关于参数修改方式</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-5-%E7%A1%AE%E8%AE%A4%E6%95%B0%E6%8D%AE%E5%BA%93%E7%94%A8%E6%88%B7%E6%9D%83%E9%99%90"><span class="nav-number">1.1.5.</span> <span class="nav-text">1.5 确认数据库用户权限</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-%E8%BE%BE%E6%A2%A6%E6%9D%83%E9%99%90%E8%AF%B4%E6%98%8E"><span class="nav-number">1.2.</span> <span class="nav-text">2 达梦权限说明</span></a></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Wei Qi"
+      src="/images/happydog.png">
+  <p class="site-author-name" itemprop="name">Wei Qi</p>
+  <div class="site-description" itemprop="description">一路走来，有点艰难</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">5</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/weiqifun/weiqifun.github.io" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;weiqifun&#x2F;weiqifun.github.io" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://weiqifun.github.io/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%BF%A1%E5%88%9B%E9%A1%B9%E7%9B%AE%E5%AE%9E%E6%96%BD%E5%87%86%E5%A4%87/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/happydog.png">
+      <meta itemprop="name" content="Wei Qi">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="WeiQi Blog">
+      <meta itemprop="description" content="一路走来，有点艰难">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="实施部署-信创项目环境搭建准备（一） | WeiQi Blog">
+      <meta itemprop="description" content="信创类产品的实施部署从 0 到 1 ，实施部署前期需要了解什么，作为跟客户沟通的技术知识保障...">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          实施部署-信创项目环境搭建准备（一）
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2024-06-06 21:41:26" itemprop="dateCreated datePublished" datetime="2024-06-06T21:41:26+08:00">2024-06-06</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">更新于</span>
+      <time title="修改时间：2024-06-07 00:09:36" itemprop="dateModified" datetime="2024-06-07T00:09:36+08:00">2024-06-07</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2/" itemprop="url" rel="index"><span itemprop="name">实施部署</span></a>
+        </span>
+          ，
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2/%E4%BF%A1%E5%88%9B/" itemprop="url" rel="index"><span itemprop="name">信创</span></a>
+        </span>
+    </span>
+
+  
+    <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye"></i>
+      </span>
+      <span class="post-meta-item-text">阅读次数：</span>
+      <span id="busuanzi_value_page_pv"></span>
+    </span>
+    <span class="post-meta-break"></span>
+    <span class="post-meta-item" title="本文字数">
+      <span class="post-meta-item-icon">
+        <i class="far fa-file-word"></i>
+      </span>
+      <span class="post-meta-item-text">本文字数：</span>
+      <span>3.2k</span>
+    </span>
+    <span class="post-meta-item" title="阅读时长">
+      <span class="post-meta-item-icon">
+        <i class="far fa-clock"></i>
+      </span>
+      <span class="post-meta-item-text">阅读时长 &asymp;</span>
+      <span>11 分钟</span>
+    </span>
+</div>
+
+            <div class="post-description">信创类产品的实施部署从 0 到 1 ，实施部署前期需要了解什么，作为跟客户沟通的技术知识保障...</div>
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>在做交付工作的时候，环境的搭建也是工作的一个重要环节。公司现在一个产品的架构：B&#x2F;S架构，采用的技术路基本是低代码平台 + JAVA后端：低代码平台里使用javascrpit做功能页面的开发，对于JAVA类也只是调用；业务逻辑都写在数据库的存储过程中。</p>
+<p>那运行产品的环境的搭建就主要包括：WEB服务的部署、数据库的部署。当然也有其他的服务，但其他服务需要根据产品的需要进行部署的。我主要负责信创类项目的实施部署，都是在LINUX服务器上部署。</p>
+<h2 id="1-信创项目知识"><a href="#1-信创项目知识" class="headerlink" title="1 信创项目知识"></a>1 信创项目知识</h2><p>信创类产品的实施部署从 0 到 1 ，实施部署前期需要了解什么，作为跟客户沟通的技术知识保障。</p>
+<h3 id="1-1-信创软硬件"><a href="#1-1-信创软硬件" class="headerlink" title="1.1 信创软硬件"></a>1.1 信创软硬件</h3><p>数据库：达梦<br>中间件：东方通、宝兰德<br>服务器操作系统：麒麟、统信<br>硬件平台：飞腾、华为、龙芯、海光、鲲鹏……<br>内核：AMD、ARM</p>
+<h3 id="1-2-确认服务器架构信息"><a href="#1-2-确认服务器架构信息" class="headerlink" title="1.2 确认服务器架构信息"></a>1.2 确认服务器架构信息</h3><p>信创，产品的框架与数据平台均做了适配，都需要根据内核来确认使用哪个版本。</p>
+<figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 在Linux服务器上输入命令获取内核信息，通常有3种方式</span></span><br><span class="line"><span class="comment"># 返回信息中包含了 x86_64 表示该服务器内核为 AMD</span></span><br><span class="line"><span class="comment"># 返回信息中包含 arrch64 或者 arm64 表示该服务器内核为 ARM</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 返回内核版本、架构</span></span><br><span class="line">uname -a</span><br><span class="line"><span class="comment"># 返回内核版本</span></span><br><span class="line">cat /proc/version</span><br><span class="line"><span class="comment"># 返回系统信息（包括内核、操作系统版本）</span></span><br><span class="line">hostnamectl</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="1-3-确认服务器内存信息"><a href="#1-3-确认服务器内存信息" class="headerlink" title="1.3 确认服务器内存信息"></a>1.3 确认服务器内存信息</h3><p>JAVA服务端通常需要设置服务的 JVM ，生产环境通常推荐 JVM &gt; 16G</p>
+<p>开发环境、测试环境 JVM 减半作为参考即可</p>
+<p>比如：在部署中间件、宝兰德中间件的时候，默认的 JVM 都是 2G，测试服务器只有8G内存的情况下，中间件的JVM修改为4G。</p>
+<h3 id="1-4-确认数据库参数"><a href="#1-4-确认数据库参数" class="headerlink" title="1.4 确认数据库参数"></a>1.4 确认数据库参数</h3><p>我所遇到的信创项目种，数据库通常使用达梦数据库。达梦数据库，有几个参数是在初始化实例的时候就需要确定的，且初始化实例后无法进行修改，除非重新初始化实例：</p>
+<ul>
+<li>页大小 (page_size)</li>
+<li>簇大小 (extent_size)</li>
+<li>大小写敏感 (case_sensitive)</li>
+<li>字符集 (charset)</li>
+</ul>
+<p>下表为这几个参数的具体含义：</p>
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>含义</th>
+<th>可设置值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>page_size</td>
+<td>数据文件使用的页大小</td>
+<td>4&#x2F;8&#x2F;16&#x2F;32</td>
+</tr>
+<tr>
+<td>extent_size</td>
+<td>簇大小，每次分配新的段空间时连续的页面</td>
+<td>16&#x2F;32&#x2F;64</td>
+</tr>
+<tr>
+<td>case_sensitive</td>
+<td>标识符大小写敏感。当大小写敏感时，小写的标识符要用双引号括起，否则被转换为大写；当大小写不敏感时，系统不自动转换标识符的大小写，在标识符比较时也不区分大小写。默认 Y （1）敏感</td>
+<td>Y&#x2F;N（1&#x2F;0）</td>
+</tr>
+<tr>
+<td>charset</td>
+<td>字符集选项，0：GB18030；1：UTF-8（默认0）</td>
+<td>0&#x2F;1</td>
+</tr>
+<tr>
+<td>length_in_char</td>
+<td>VARCHAR类型长度是否以字符为单位（默认为N   0 ）</td>
+<td>Y&#x2F;N（1&#x2F;0）</td>
+</tr>
+</tbody></table>
+<p>页大小与字段长度有关，簇大小与表空间有关，但是这两个都与我们没有关系，我们需要注意的只有 2 个：</p>
+<ul>
+<li>大小写敏感</li>
+<li>字符集编码</li>
+</ul>
+<p>产品多为oracle开发，从oracle移植过来，为了更好的兼容，通常开启大小写敏感；字符集编码是GB18030还是UTF-8没关系，但是开发环境、测试环境、生产环境需要字符集编码一致。</p>
+<p>在实际的项目实施部署中，客户的开发环境、测试环境通常由我们厂商维护，只有生产环境是由DBA维护。所以在前期的沟通中，我们需要跟DBA确认好达梦数据库里的上述参数，确保开发环境、测试环境、生产环境保持一致。</p>
+<p>总结了一份模板如下，页大小和簇大小根据在生产上通常建议设置为32</p>
+<img src="/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%BF%A1%E5%88%9B%E9%A1%B9%E7%9B%AE%E5%AE%9E%E6%96%BD%E5%87%86%E5%A4%87/image-20240606222536306.png" class="" title="image-20240606222536306">
+
+
+
+<h4 id="1-4-1-参数带来的影响"><a href="#1-4-1-参数带来的影响" class="headerlink" title="1.4.1 参数带来的影响"></a>1.4.1 参数带来的影响</h4><h5 id="1）编码不一致"><a href="#1）编码不一致" class="headerlink" title="1）编码不一致"></a>1）编码不一致</h5><p>当开发环境或者测试环境，与生产环境的字符集编码不一致时，可能会产生字符串长度相关的报错。</p>
+<p>比如：</p>
+<p>测试环境上是 GB18030 编码，但是生产环境上是 UTF8 编码，因为 GB 编码存一个中文需要的 1 个字节少于 UTF8 存一个中文需要的 3 个字节，测试后的产品功能上了生产环境可能会报出字符串截断的错误。</p>
+<h5 id="2）大小写敏感不一致"><a href="#2）大小写敏感不一致" class="headerlink" title="2）大小写敏感不一致"></a>2）大小写敏感不一致</h5><p>大小写敏感：查数据内容时，查 a 就是 a，查 A 就是 A</p>
+<p>大小写不敏感：查数据内容时，查 a 返回 A、a</p>
+<p>如果不设置大小写敏感，不仅是在写查询SQL的时候会影响，在创建对象、写存储过程时，对象名称、字段名称也会受到影响。比如：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">create</span> <span class="keyword">table</span> table_A (id varchar2(<span class="number">8</span>));</span><br><span class="line"><span class="keyword">insert</span> table_a <span class="keyword">values</span>(<span class="string">&#x27;001&#x27;</span>);</span><br><span class="line"># <span class="keyword">insert</span> 就会报错，因为 table_a 不存在，必须与创建的表名一模一样才可以</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="1-4-2-其他可能需要修改的参数"><a href="#1-4-2-其他可能需要修改的参数" class="headerlink" title="1.4.2 其他可能需要修改的参数"></a>1.4.2 其他可能需要修改的参数</h4><p>此处的参数指，达梦数据库 <code>dm.ini</code> 配置文件里的参数。在开发环境、测试环境可由自己根据实际情况更改，在生产上必须与DBA沟通后进行更改，也需要保持三个环境中参数的一致性。</p>
+<p><code>dm.ini </code>配置文件中，有静态参数、动态参数。静态参数需要重启数据库服务后才生效，在生产上重启数据库是一件严肃的事情，需要修改的参数需要自己做好验证是否能够解决实际的情况。</p>
+<h5 id="1）COMPATIBLE-MODE"><a href="#1）COMPATIBLE-MODE" class="headerlink" title="1）COMPATIBLE_MODE"></a>1）COMPATIBLE_MODE</h5><p>该参数用于控制达梦数据库在部分功能处理时与其他数据库的兼容模式。常用设置：</p>
+<ul>
+<li>0 - 不兼容</li>
+<li>1 - 兼容SQL92标准</li>
+<li>2 - 兼容ORACLE</li>
+<li>3 - 兼容SQL SERVER</li>
+<li>4 - 兼容MYSQL</li>
+</ul>
+<p>通常项目上，此参数设置为2，可以更好的适配基于ORACLE开发的产品代码。</p>
+<h6 id="【例子】"><a href="#【例子】" class="headerlink" title="【例子】"></a>【例子】</h6><p>达梦数据库默认<code>NULL</code> 与<code>空值</code>是不等价的，NULL就是NULL，空值就是空值。某个功能查询需要同时满足它们，需要这样写：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">select</span> col_A</span><br><span class="line"><span class="keyword">from</span> table_A</span><br><span class="line"><span class="keyword">where</span> col_A <span class="keyword">is</span> <span class="keyword">null</span> <span class="keyword">or</span> col_A <span class="operator">=</span> <span class="string">&#x27;&#x27;</span></span><br><span class="line">;</span><br></pre></td></tr></table></figure>
+
+<p>ORACLE中默认<code>NULL</code> 和<code>空值</code>是等价的，同时满足只需要：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">select</span> col_A</span><br><span class="line"><span class="keyword">from</span> table_A</span><br><span class="line"><span class="keyword">where</span> col_A <span class="operator">=</span> <span class="string">&#x27;&#x27;</span></span><br><span class="line">;</span><br></pre></td></tr></table></figure>
+
+<p>修改<code>COMPATIBLE_MODE</code>参数为<code>2</code>即可跟在ORACLE上的查询写法一致。</p>
+<h5 id="2）PK-WITH-CLUSTER"><a href="#2）PK-WITH-CLUSTER" class="headerlink" title="2）PK_WITH_CLUSTER"></a>2）PK_WITH_CLUSTER</h5><p>该参数默认为<code>1</code> </p>
+<p>该参数与建表时的主键索引有关，达梦数据库在创建表时，如果创建主键，则默认主键是聚簇索引键。如果没有主键，则默认<code>rowid</code> 作为聚簇索引键</p>
+<h6 id="【例子】-1"><a href="#【例子】-1" class="headerlink" title="【例子】"></a>【例子】</h6><p>当在达梦数据建表时，同时出现主键、字段为大字段CLOB类型的时候，就会报错：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">create</span> <span class="keyword">table</span> table_A(</span><br><span class="line">	id varchar2(<span class="number">8</span>) <span class="keyword">primary</span> key,</span><br><span class="line">    name varchar2(<span class="number">20</span>),</span><br><span class="line">    addr <span class="type">clob</span></span><br><span class="line">);</span><br><span class="line"></span><br><span class="line"><span class="comment">-- 该语句会报错：表[xxxxxx]中不能同时包含聚集 KEY 和大字段</span></span><br></pre></td></tr></table></figure>
+
+<p>此时，修改参数<code>PK_WITH_CLUSTER=0</code> ，再创建有主键、字段为CLOB类型的表，就可以创建成功。</p>
+<h6 id="【关于聚簇索引】"><a href="#【关于聚簇索引】" class="headerlink" title="【关于聚簇索引】"></a>【关于聚簇索引】</h6><blockquote>
+<p>表（列存储表和堆表除外）都是使用 B+树(以下简称 B 树)索引结构管理的，每一个普通表都有一个聚集索引，数据通过聚集索引键排序，根据聚集索引键可以快速查询任何记录。（即表是一个索引，这个索引名称叫聚集索引，可以理解为创建一个表后，将所有字段放在一起建立一个复合索引，只不过这个不需要我们来创建，系统自动给我们维护了一个）</p>
+</blockquote>
+<blockquote>
+<p>当建表语句未指定聚集索引键，DM 的默认聚集索引键是 ROWID，即记录默认以 ROWID 在页面中排序。ROWID 是 B 树为记录生成的逻辑递增序号，表上不同记录的 ROWID 是不一样的，并且最新插入的记录 ROWID 最大。很多情况下，以 ROWID 建的默认聚集索引并不能提高查询速度，因为实际情况下很少人根据 ROWID 来查找数据。</p>
+</blockquote>
+<p><a href="">原文链接： https://blog.csdn.net/sinat_32856657&#x2F;article&#x2F;details&#x2F;125410328</a></p>
+<h5 id="3）CALS-AS-DECIMAL"><a href="#3）CALS-AS-DECIMAL" class="headerlink" title="3）CALS_AS_DECIMAL"></a>3）CALS_AS_DECIMAL</h5><p>该参数是控制 整数除法运算是否舍弃小数。</p>
+<p>在达梦数据库中，整数相除或者使用<code>ROUND</code>函数，结果如果有小数位，会被直接舍弃，返回整数。</p>
+<p>比如</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">select</span> <span class="number">9</span><span class="operator">/</span><span class="number">2</span> <span class="keyword">from</span> dual;</span><br><span class="line"><span class="comment">-- 会返回4</span></span><br></pre></td></tr></table></figure>
+
+<p>可修改<code>CALC_AS_DECIMAL=1</code> 让运算不舍弃小数位</p>
+<h5 id="关于参数修改方式"><a href="#关于参数修改方式" class="headerlink" title="关于参数修改方式"></a>关于参数修改方式</h5><p>第一种：通过<code>dm.ini</code> 修改参数</p>
+<p>第二种：在达梦SQL窗口中，执行：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">sp_set_para_value(old_values, <span class="string">&#x27;param_name&#x27;</span>, new_values);</span><br><span class="line"></span><br><span class="line"><span class="comment">-- 例如</span></span><br><span class="line">sp_set_para_value(<span class="number">1</span>,<span class="string">&#x27;PK_WITH_CLUSTER&#x27;</span>,<span class="number">0</span>);</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="1-5-确认数据库用户权限"><a href="#1-5-确认数据库用户权限" class="headerlink" title="1.5 确认数据库用户权限"></a>1.5 确认数据库用户权限</h3><p>产品需要的用户大部分情况下是使用了DBA角色的权限，但是在项目实施时（特别是在生产环境中），会有部分客户认为产品上 DBA 权限不合理，也会有部分客户授权 DBA 是需要走流程申请。</p>
+<p>所以这一点在前期就需要跟客户确认，用户权限能否授予DBA权限。</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">-- 创建达梦用户脚本</span></span><br><span class="line"></span><br><span class="line"><span class="comment">-- 创建表空间</span></span><br><span class="line"><span class="comment">-- 默认初始大小 500MB，每次自增 40MB，最大 10G</span></span><br><span class="line"><span class="keyword">create</span> <span class="keyword">table</span>space &quot;TS_TEST&quot; datafile <span class="string">&#x27;/dm8/data/DAMENG/TS_TEST.DBF&#x27;</span> size <span class="number">500</span> autoextend <span class="keyword">on</span> next <span class="number">40</span> maxsize <span class="number">10240</span>;    <span class="comment">-- 生产上可扩展为 unlimited</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">create</span> <span class="keyword">user</span> &quot;test&quot; identified <span class="keyword">by</span> &quot;testdata123&quot; <span class="keyword">default</span> tablespace TS_test;</span><br><span class="line"><span class="keyword">grant</span> &quot;DBA&quot; <span class="keyword">to</span> &quot;test&quot;;</span><br><span class="line"><span class="keyword">grant</span> <span class="keyword">delete</span> <span class="keyword">any</span> <span class="keyword">table</span> <span class="keyword">to</span> test;</span><br><span class="line"><span class="keyword">grant</span> <span class="keyword">execute</span> <span class="keyword">any</span> <span class="keyword">procedure</span> <span class="keyword">to</span> test;</span><br><span class="line"><span class="keyword">grant</span> <span class="keyword">insert</span> <span class="keyword">any</span> <span class="keyword">table</span> <span class="keyword">to</span> test;</span><br><span class="line"><span class="keyword">grant</span> <span class="keyword">select</span> <span class="keyword">any</span> dictionary <span class="keyword">to</span> test;</span><br><span class="line"><span class="keyword">grant</span> <span class="keyword">select</span> <span class="keyword">any</span> <span class="keyword">table</span> <span class="keyword">to</span> test;</span><br><span class="line"><span class="keyword">grant</span> unlimited tablespace <span class="keyword">to</span> test;</span><br><span class="line"><span class="keyword">grant</span> <span class="keyword">update</span> <span class="keyword">any</span> <span class="keyword">table</span> <span class="keyword">to</span> test;</span><br></pre></td></tr></table></figure>
+
+
+
+<p>甚至有的客户（我遇到的一个），认为<code>ANY</code>权限也是有大隐患的，需要针对到具体表名的权限。</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">GRANT</span> <span class="keyword">DELETE</span> <span class="keyword">ANY</span> <span class="keyword">TABLE</span> <span class="keyword">TO</span> TEST;</span><br><span class="line"><span class="keyword">GRANT</span> <span class="keyword">SELECT</span> <span class="keyword">ANY</span> <span class="keyword">TABLE</span> <span class="keyword">TO</span> TEST;</span><br><span class="line"><span class="keyword">GRANT</span> <span class="keyword">UPDATE</span> <span class="keyword">ANY</span> <span class="keyword">TABLE</span> <span class="keyword">TO</span> TEST;</span><br><span class="line"><span class="keyword">GRANT</span> <span class="keyword">INSERT</span> <span class="keyword">ANY</span> <span class="keyword">TABLE</span> <span class="keyword">TO</span> TEST;</span><br></pre></td></tr></table></figure>
+
+<p>这种情况就没办法了，很麻烦，一个成熟且功能复杂的产品，可能标准版初始的表就有上千张（还不包括后续的开发新的功能表），存储过程、自定义函数等等也有上千个。每个存储过程用到的表都不一样，要一一梳理哪些用户select，哪个用户要delete等等，后期就需要额外的花时间去进行梳理。<del>（虽然更安全、合规，但是麻烦的是我~吐槽一下）</del></p>
+<h2 id="2-达梦权限说明"><a href="#2-达梦权限说明" class="headerlink" title="2 达梦权限说明"></a>2 达梦权限说明</h2><p>通常我们在部署时，JDBC 中的连接，我们使用 <code>WOLF</code>  <code>WOLFDATA</code> 用户去连接，或者使用 <code>WOLF</code> 去配置两个 JDBC 连接，指向 <code>WOLF</code>  <code>WOLFDATA</code> 模式（达梦中 schema 的概念，可以把它当成 oracle 的实例概念）。</p>
+<p>使用了 <code>WOLF</code> 用户去配置 JDBC 连接，那么此时，在系统进行日常操作的时候，在数据库中就是基于 <code>WOLF</code> 用户对对各个对象（TABLE \ SP \ FUNCTION \ VIEW \ TYPE \ PACKAGE 等）进行增删改查操作。</p>
+<p>通常情况下，框架提供的默认权限脚本权限多含 <code>DBA</code> 或者 <code>ANY</code> 权限，但是在生产环境上其实是不被允许的。在用户具备 DBA \ DROP ANY OBJECTS 的情况，能做的事情比较多，包括了对表空间（数据文件）的更改、跨用户删除表 等危险操作。</p>
+<p>因此在权限上，有的客户会要求梳理到具体的表需要什么权限。</p>
+<figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">1</span>.除了本身的 ROURCE 角色外，需要对系统表的查询权限，SOV\SVI 角色</span><br><span class="line"><span class="number">2</span>.需要对 WOLFDATA 具有完全执行权，WOLFDATA 下一般只有表，对这些表有增删改查即可</span><br><span class="line"><span class="number">3</span>.对产品用户的对象：（不包含达梦自身用户的对象）</span><br><span class="line">  所有 TABLE 有 INSERT \ DELETE \ UPDATE \ SELECT 权限</span><br><span class="line">  所有 VIEW  有 SELECT 权限</span><br><span class="line">  所有 SP    有 EXECUTE 权限</span><br><span class="line">  所有的 FUNC 有 EXECUTE</span><br><span class="line">  所有的 PACKAGE 有 EXECUTE  （达梦的 TYPE 类型集合到了 PACKAGE 里）</span><br><span class="line">  所有的 CLASS 有 EXECUTE</span><br></pre></td></tr></table></figure>
+
+
+
+<figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">其他的产品用户，权限则需要有自身的 RESOURCE 用户外，</span><br><span class="line">还应该从自身的 SP 中逐一排查需要的 跨用户对象的某个权限</span><br><span class="line"></span><br><span class="line">比如 RISKCONFIG 的 SP 中通常含有对中间层表的 DELETE \ INSERT \ SELECT \ UPDATE</span><br><span class="line">则应该为 RISKCONFIG 用户赋予中间层表的 DELETE \ INSERT \ SELECT \ UPDATE 权限。</span><br><span class="line"></span><br><span class="line">不需要 WOLF 对中间层表有权限，WOLF 只需要有执行该 SP 的权限即可。</span><br></pre></td></tr></table></figure>
+
+
+
+
+
+<p>前期将这些沟通好，等客户给服务器的相关信息，就可以开始着手准备实施部署产品了。</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E5%AE%9E%E6%96%BD/" rel="tag"># 实施</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2024/06/04/%E7%BB%8F%E9%AA%8C%E6%9D%82%E8%B0%88-%E4%B8%AA%E6%80%A7%E5%8C%96%E7%B3%BB%E7%BB%9F%E5%A6%82%E4%BD%95%E5%85%A5%E6%89%8B/" rel="prev" title="经验杂谈-面对个性化的产品如何下手">
+                  <i class="fa fa-angle-left"></i> 经验杂谈-面对个性化的产品如何下手
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E8%BE%BE%E6%A2%A6%E6%95%B0%E6%8D%AE%E5%BA%93%E7%9A%84%E5%AE%89%E8%A3%85/" rel="next" title="实施部署-达梦数据库linux版的安装（二）">
+                  实施部署-达梦数据库linux版的安装（二） <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2024</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Wei Qi</span>
+  </div>
+<div class="wordcount">
+  <span class="post-meta-item">
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-line"></i>
+    </span>
+    <span title="站点总字数">7k</span>
+  </span>
+  <span class="post-meta-item">
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">26 分钟</span>
+  </span>
+</div>
+<div class="busuanzi-count">
+    <span class="post-meta-item" id="busuanzi_container_site_uv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/sidebar.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+
+  
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+
+</body>
+</html>

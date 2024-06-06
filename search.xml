@@ -1,105 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
-    <title>SQL-违反表的唯一约束条件（主键冲突）问题</title>
-    <url>/2024/06/03/SQL-%E4%B8%BB%E9%94%AE%E5%86%B2%E7%AA%81%E9%97%AE%E9%A2%98/</url>
-    <content><![CDATA[<h2 id="问题"><a href="#问题" class="headerlink" title="问题"></a>问题</h2><p>实际的项目中，采集上游数据到数据集市的贴源层 &gt;&gt; 跑数据转换任务，将数据写入到我们的业务表，在跑转换任务的时候，时不时会报错主键冲突。转换里，通常写着<code>insert</code> <code>update</code> 语句，当向表执行插入和更新操作，时不时出现报错：违反表的唯一约束条件。</p>
-<img src="/2024/06/03/SQL-%E4%B8%BB%E9%94%AE%E5%86%B2%E7%AA%81%E9%97%AE%E9%A2%98/image-20240603204053362.png" class="" title="image-20240603204053362">
-
-<p>因为在实际业务中，中间层或者业务层表，通常情况下，是具有主键的（可能是单一主键，可能是复合主键）。</p>
-<span id="more"></span>
-
-<h2 id="常见的两种情况"><a href="#常见的两种情况" class="headerlink" title="常见的两种情况"></a>常见的两种情况</h2><p>1）目标表里已经有了一条数据A，但是转换任务又往目标表里写入一条数据A，导致的报错；</p>
-<p>2）目标表里没有数据，但是转换里，使用的关联条件产生了多条重复数据，导致的报错。</p>
-<p>根据这两种情况对数据进行排查，看看是哪些数据重复了。</p>
-<h2 id="思路"><a href="#思路" class="headerlink" title="思路"></a>思路</h2><p>1.根据报错的主键名称，查找该索引名是哪张表的主键名</p>
-<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">select</span> <span class="operator">*</span></span><br><span class="line">  <span class="keyword">from</span> all_indexes a</span><br><span class="line"> <span class="keyword">where</span> a.index_name <span class="operator">=</span> <span class="string">&#x27;报错的主键名&#x27;</span>;</span><br></pre></td></tr></table></figure>
-
-<img src="/2024/06/03/SQL-%E4%B8%BB%E9%94%AE%E5%86%B2%E7%AA%81%E9%97%AE%E9%A2%98/image-20240603212340949.png" class="" title="image-20240603212340949">
-
-
-
-<p>2.查看该表，查看该主键由哪些字段组成</p>
-<img src="/2024/06/03/SQL-%E4%B8%BB%E9%94%AE%E5%86%B2%E7%AA%81%E9%97%AE%E9%A2%98/image-20240603212455621.png" class="" title="image-20240603212455621">
-
-
-
-<p>3.对于第一种情况，根据这些字段，将目标表与转换里源表进行<code>join</code>，对索引字段进行<code>count</code>，查看是否有重复数据</p>
-<p>例如这张表在转换里源表（from的表）为 <code>ct.st_xxx</code>，那么可以如下，查到重复的数据</p>
-<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">select</span> a.contract_no, a.stock_account, <span class="built_in">count</span>(<span class="operator">*</span>)</span><br><span class="line">  <span class="keyword">from</span> sett.t_ref_contract a</span><br><span class="line">  <span class="keyword">join</span> ct.st_xxx b</span><br><span class="line">    <span class="keyword">on</span> a.contract_no <span class="operator">=</span> b.jys <span class="comment">-- 关联字段</span></span><br><span class="line">   <span class="keyword">and</span> a.stock_account <span class="operator">=</span> b.zqzh</span><br><span class="line"> <span class="keyword">group</span> <span class="keyword">by</span> a.contract_no, a.stock_account</span><br><span class="line"><span class="keyword">having</span> <span class="built_in">count</span>(<span class="operator">*</span>) <span class="operator">&gt;</span> <span class="number">1</span>;</span><br></pre></td></tr></table></figure>
-
-<p>然后，对比该数据，是否完全一致（因为数据可能出现只有主键字段是相同的，但是其他字段不同的情况）</p>
-<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">select</span> a.<span class="operator">*</span></span><br><span class="line">  <span class="keyword">from</span> sett.t_ref_contract a</span><br><span class="line">  <span class="keyword">join</span> ct.st_xxx b</span><br><span class="line">    <span class="keyword">on</span> a.contract_no <span class="operator">=</span> b.jys <span class="comment">-- 关联字段</span></span><br><span class="line">   <span class="keyword">and</span> a.stock_account <span class="operator">=</span> b.zqzh</span><br><span class="line"> <span class="keyword">where</span> a.contract_no <span class="operator">=</span> <span class="string">&#x27;查到的contract_no&#x27;</span></span><br><span class="line">   <span class="keyword">and</span> a.stock_account <span class="operator">=</span> <span class="string">&#x27;查到的stock_account&#x27;</span></span><br><span class="line"> <span class="keyword">group</span> <span class="keyword">by</span> a.contract_no, a.stock_account;</span><br></pre></td></tr></table></figure>
-
-<p>3.1）若一致，则可将目标表里的数据删掉</p>
-<p>3.2）若不一致，应咨询业务，它们是否有区别，根据业务沟通后的方案，将数据备份后，对其更改或删除等操作</p>
-<p>4.对于第二种情况，则需要看转换里，它的<code>insert</code> 或者<code>update</code> 的逻辑，类似：</p>
-<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">insert</span> table_a (</span><br><span class="line">	col_1,</span><br><span class="line">    col_2,</span><br><span class="line">    ...</span><br><span class="line">)</span><br><span class="line"><span class="keyword">select</span> col_a,</span><br><span class="line">	   col_b,</span><br><span class="line">	   ...</span><br><span class="line">  <span class="keyword">from</span> table_b t1</span><br><span class="line">  <span class="keyword">join</span> table_c t2</span><br><span class="line">    <span class="keyword">on</span> t1.col_a <span class="operator">=</span> t2.col_a</span><br><span class="line">   <span class="keyword">and</span> t1.col_b <span class="operator">=</span> t2.col_b;</span><br></pre></td></tr></table></figure>
-
-<p>然后对关联条件进行检查，看看是不是关联条件出现了 <code>1:N</code> <code>N:N</code> 的情况，如果是，则根据代码的逻辑，对该数据产生的原因进行定位，根据实际情况进行解决。</p>
-]]></content>
-      <categories>
-        <category>数据库</category>
-      </categories>
-      <tags>
-        <tag>SQL</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>经验杂谈-面对个性化的产品如何下手</title>
-    <url>/2024/06/04/%E7%BB%8F%E9%AA%8C%E6%9D%82%E8%B0%88-%E4%B8%AA%E6%80%A7%E5%8C%96%E7%B3%BB%E7%BB%9F%E5%A6%82%E4%BD%95%E5%85%A5%E6%89%8B/</url>
-    <content><![CDATA[<p>《吐槽一下，让心情发泄一下》</p>
-<p>今天在工作的时候，烦恼的时候突然蹦出来一个思路。</p>
-<p>现在的工作的公司，多数都是靠着个性化服务来做产品，导致了一个产品的标准版，到了客户现场环境，会根据客户的实际使用要求，对产品的功能、转换去做个性化开发。导致了刚到现场接触这个产品的时候常常因为困惑感到无从下手。</p>
-<span id="more"></span>
-
-<p>特别是，一上来就让你排查生产问题的时候。。。。</p>
-<img src="/2024/06/04/%E7%BB%8F%E9%AA%8C%E6%9D%82%E8%B0%88-%E4%B8%AA%E6%80%A7%E5%8C%96%E7%B3%BB%E7%BB%9F%E5%A6%82%E4%BD%95%E5%85%A5%E6%89%8B/image-20240604212748892.png" class="" title="image-20240604212748892">
-
-<p>但是表面还是要装作很谈定，装作很熟悉的样子，打开控制台，看看功能背后用了什么支持的文件或者代码，，，</p>
-<p>打开数据库看看对应的SP，看看主表join表有没有数据，关联条件是不是导致了数据重复，会不会过滤掉部分数据，看看where条件是不是把数据过滤掉，，，</p>
-<p>看看上游数据是不是正常的，转换后数据是不是正常的，，，</p>
-<img src="/2024/06/04/%E7%BB%8F%E9%AA%8C%E6%9D%82%E8%B0%88-%E4%B8%AA%E6%80%A7%E5%8C%96%E7%B3%BB%E7%BB%9F%E5%A6%82%E4%BD%95%E5%85%A5%E6%89%8B/image-20240604213252623.png" class="" title="image-20240604213252623">
-
-
-
-
-
-<p> 一个经过多年完善的产品，越成熟意味着越复杂。刚进公司的第一年，做着游走打支援的活，基本是哪里有活就去哪，哪里缺人手就去哪。做多以后呢，好像上级对我的要求就一下子就拔高了？？？总是会默认你是会的。这一点就很奇怪，支援式的工作，无法有长久的时间去深入了解一个产品。特别是一些反洗钱、异常交易这种与业务勾稽关系多，模块又多的产品。<del>因为公司对这些产品是没有文档介绍的（至少我没见过，辣鸡）~~~~做了一年半没见过公司的标准版产品长啥样，现场实施的痛！</del></p>
-<p>没接触一个项目得自己摸索，摸索一点门道，还没咋熟悉，又换一个项目（对于我而言是新的），特别是公司极度缺人，交接也没交接，技术支持也没有，内心：</p>
-<img src="/2024/06/04/%E7%BB%8F%E9%AA%8C%E6%9D%82%E8%B0%88-%E4%B8%AA%E6%80%A7%E5%8C%96%E7%B3%BB%E7%BB%9F%E5%A6%82%E4%BD%95%E5%85%A5%E6%89%8B/image-20240604212459209.png" class="" title="image-20240604212459209">
-
-
-
-<p>而且每天都在苦恼业务的提问<del>刁难！</del>，心里只有：</p>
-<img src="/2024/06/04/%E7%BB%8F%E9%AA%8C%E6%9D%82%E8%B0%88-%E4%B8%AA%E6%80%A7%E5%8C%96%E7%B3%BB%E7%BB%9F%E5%A6%82%E4%BD%95%E5%85%A5%E6%89%8B/image-20240604212233306.png" class="" title="image-20240604212233306">
-
-
-
-
-
-
-
-<p>之前在看期货风险度监控的时候，这个功能总是只出了一个来源期货数仓的期货账户数据，还有好几个O32的期货账户数据监控不出来，纳闷了好久，里边三段逻辑有一段限制了日期，有一段限制了账户，只有一段是没有做限制的。</p>
-<p>上一个人做了一半，就走了。。。</p>
-<p>我就被急急忙忙拉过来继续完成上一个人的工作，我也不知道现场这边是怎么做的，反正看仿真环境代码里有2个限制，再对比一下生产环境，好家伙，也有2个限制。我也不知道一段限制日期，一段限制账户。看着生产也这样，想想接触的个性化的转换代码，功能代码多了去了。只是当这是个性化的一部分。</p>
-<p>为了能让其他的期货账户的数据被监控出来，我前前后后看了上游数据、转换后的数据、以及业务表的数据，看了转换的条件，看了监控的逻辑条件。纳闷，代码、数据没什么问题啊，为什么没出来。。。</p>
-<p>怎么我一来就没数据。没做完，又被拉去做另一个更紧急的项目上了，这个就搁置了。</p>
-<p>今天又过去，继续看。找了熟悉现场的同事问了问，同事已经不记得了。问了产品部，产品部答复该代码非标准版代码，应该为现场实施修改的，具体需要咨询现场的实施。</p>
-<p>卧槽，哪还有人咨询。</p>
-<p>后边我突然想到，我也没见过标准版代码是啥，我找产品部拿不就好了，我之前咋脑子不灵光</p>
-<p>看了标准版，代码里没有对期货账户做限制，这里为啥要限制，尝试注释掉，然后重新跑一下监控，其他期货账户数据被监控出来。。。。</p>
-<p>啊~</p>
-<p><strong>以后遇到个性化的代码，一定先跟标准版对比，然后去问熟悉的人（同事或者客户）看看为什么要这么做个性化，搞懂原因后，看这个代码就顺眼多了，问题自然好解决。</strong></p>
-]]></content>
-      <categories>
-        <category>工作思考</category>
-      </categories>
-      <tags>
-        <tag>经验记录</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>SQL-日期时间转换问题</title>
     <url>/2024/06/02/SQL-%E6%97%A5%E6%9C%9F%E6%97%B6%E9%97%B4%E8%BD%AC%E6%8D%A2%E9%97%AE%E9%A2%98/</url>
     <content><![CDATA[<h2 id="问题一：非正常时间格式转换问题"><a href="#问题一：非正常时间格式转换问题" class="headerlink" title="问题一：非正常时间格式转换问题"></a>问题一：非正常时间格式转换问题</h2><h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>最近在项目上，使用ETL工具配置任务，将上游数据直接推送到<code>kafka topic</code> 中，让另一个系统去消费这些实时成交的数据。</p>
@@ -169,6 +70,378 @@
       </categories>
       <tags>
         <tag>SQL</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>实施部署-信创项目环境搭建准备（一）</title>
+    <url>/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%BF%A1%E5%88%9B%E9%A1%B9%E7%9B%AE%E5%AE%9E%E6%96%BD%E5%87%86%E5%A4%87/</url>
+    <content><![CDATA[<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>在做交付工作的时候，环境的搭建也是工作的一个重要环节。公司现在一个产品的架构：B&#x2F;S架构，采用的技术路基本是低代码平台 + JAVA后端：低代码平台里使用javascrpit做功能页面的开发，对于JAVA类也只是调用；业务逻辑都写在数据库的存储过程中。</p>
+<p>那运行产品的环境的搭建就主要包括：WEB服务的部署、数据库的部署。当然也有其他的服务，但其他服务需要根据产品的需要进行部署的。我主要负责信创类项目的实施部署，都是在LINUX服务器上部署。</p>
+<h2 id="1-信创项目知识"><a href="#1-信创项目知识" class="headerlink" title="1 信创项目知识"></a>1 信创项目知识</h2><p>信创类产品的实施部署从 0 到 1 ，实施部署前期需要了解什么，作为跟客户沟通的技术知识保障。</p>
+<h3 id="1-1-信创软硬件"><a href="#1-1-信创软硬件" class="headerlink" title="1.1 信创软硬件"></a>1.1 信创软硬件</h3><p>数据库：达梦<br>中间件：东方通、宝兰德<br>服务器操作系统：麒麟、统信<br>硬件平台：飞腾、华为、龙芯、海光、鲲鹏……<br>内核：AMD、ARM</p>
+<h3 id="1-2-确认服务器架构信息"><a href="#1-2-确认服务器架构信息" class="headerlink" title="1.2 确认服务器架构信息"></a>1.2 确认服务器架构信息</h3><p>信创，产品的框架与数据平台均做了适配，都需要根据内核来确认使用哪个版本。</p>
+<figure class="highlight perl"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 在Linux服务器上输入命令获取内核信息，通常有3种方式</span></span><br><span class="line"><span class="comment"># 返回信息中包含了 x86_64 表示该服务器内核为 AMD</span></span><br><span class="line"><span class="comment"># 返回信息中包含 arrch64 或者 arm64 表示该服务器内核为 ARM</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 返回内核版本、架构</span></span><br><span class="line">uname -a</span><br><span class="line"><span class="comment"># 返回内核版本</span></span><br><span class="line">cat /proc/version</span><br><span class="line"><span class="comment"># 返回系统信息（包括内核、操作系统版本）</span></span><br><span class="line">hostnamectl</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="1-3-确认服务器内存信息"><a href="#1-3-确认服务器内存信息" class="headerlink" title="1.3 确认服务器内存信息"></a>1.3 确认服务器内存信息</h3><p>JAVA服务端通常需要设置服务的 JVM ，生产环境通常推荐 JVM &gt; 16G</p>
+<p>开发环境、测试环境 JVM 减半作为参考即可</p>
+<p>比如：在部署中间件、宝兰德中间件的时候，默认的 JVM 都是 2G，测试服务器只有8G内存的情况下，中间件的JVM修改为4G。</p>
+<h3 id="1-4-确认数据库参数"><a href="#1-4-确认数据库参数" class="headerlink" title="1.4 确认数据库参数"></a>1.4 确认数据库参数</h3><p>我所遇到的信创项目种，数据库通常使用达梦数据库。达梦数据库，有几个参数是在初始化实例的时候就需要确定的，且初始化实例后无法进行修改，除非重新初始化实例：</p>
+<ul>
+<li>页大小 (page_size)</li>
+<li>簇大小 (extent_size)</li>
+<li>大小写敏感 (case_sensitive)</li>
+<li>字符集 (charset)</li>
+</ul>
+<p>下表为这几个参数的具体含义：</p>
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>含义</th>
+<th>可设置值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>page_size</td>
+<td>数据文件使用的页大小</td>
+<td>4&#x2F;8&#x2F;16&#x2F;32</td>
+</tr>
+<tr>
+<td>extent_size</td>
+<td>簇大小，每次分配新的段空间时连续的页面</td>
+<td>16&#x2F;32&#x2F;64</td>
+</tr>
+<tr>
+<td>case_sensitive</td>
+<td>标识符大小写敏感。当大小写敏感时，小写的标识符要用双引号括起，否则被转换为大写；当大小写不敏感时，系统不自动转换标识符的大小写，在标识符比较时也不区分大小写。默认 Y （1）敏感</td>
+<td>Y&#x2F;N（1&#x2F;0）</td>
+</tr>
+<tr>
+<td>charset</td>
+<td>字符集选项，0：GB18030；1：UTF-8（默认0）</td>
+<td>0&#x2F;1</td>
+</tr>
+<tr>
+<td>length_in_char</td>
+<td>VARCHAR类型长度是否以字符为单位（默认为N   0 ）</td>
+<td>Y&#x2F;N（1&#x2F;0）</td>
+</tr>
+</tbody></table>
+<p>页大小与字段长度有关，簇大小与表空间有关，但是这两个都与我们没有关系，我们需要注意的只有 2 个：</p>
+<ul>
+<li>大小写敏感</li>
+<li>字符集编码</li>
+</ul>
+<p>产品多为oracle开发，从oracle移植过来，为了更好的兼容，通常开启大小写敏感；字符集编码是GB18030还是UTF-8没关系，但是开发环境、测试环境、生产环境需要字符集编码一致。</p>
+<p>在实际的项目实施部署中，客户的开发环境、测试环境通常由我们厂商维护，只有生产环境是由DBA维护。所以在前期的沟通中，我们需要跟DBA确认好达梦数据库里的上述参数，确保开发环境、测试环境、生产环境保持一致。</p>
+<p>总结了一份模板如下，页大小和簇大小根据在生产上通常建议设置为32</p>
+<img src="/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%BF%A1%E5%88%9B%E9%A1%B9%E7%9B%AE%E5%AE%9E%E6%96%BD%E5%87%86%E5%A4%87/image-20240606222536306.png" class="" title="image-20240606222536306">
+
+
+
+<h4 id="1-4-1-参数带来的影响"><a href="#1-4-1-参数带来的影响" class="headerlink" title="1.4.1 参数带来的影响"></a>1.4.1 参数带来的影响</h4><h5 id="1）编码不一致"><a href="#1）编码不一致" class="headerlink" title="1）编码不一致"></a>1）编码不一致</h5><p>当开发环境或者测试环境，与生产环境的字符集编码不一致时，可能会产生字符串长度相关的报错。</p>
+<p>比如：</p>
+<p>测试环境上是 GB18030 编码，但是生产环境上是 UTF8 编码，因为 GB 编码存一个中文需要的 1 个字节少于 UTF8 存一个中文需要的 3 个字节，测试后的产品功能上了生产环境可能会报出字符串截断的错误。</p>
+<h5 id="2）大小写敏感不一致"><a href="#2）大小写敏感不一致" class="headerlink" title="2）大小写敏感不一致"></a>2）大小写敏感不一致</h5><p>大小写敏感：查数据内容时，查 a 就是 a，查 A 就是 A</p>
+<p>大小写不敏感：查数据内容时，查 a 返回 A、a</p>
+<p>如果不设置大小写敏感，不仅是在写查询SQL的时候会影响，在创建对象、写存储过程时，对象名称、字段名称也会受到影响。比如：</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">create</span> <span class="keyword">table</span> table_A (id varchar2(<span class="number">8</span>));</span><br><span class="line"><span class="keyword">insert</span> table_a <span class="keyword">values</span>(<span class="string">&#x27;001&#x27;</span>);</span><br><span class="line"># <span class="keyword">insert</span> 就会报错，因为 table_a 不存在，必须与创建的表名一模一样才可以</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="1-4-2-其他可能需要修改的参数"><a href="#1-4-2-其他可能需要修改的参数" class="headerlink" title="1.4.2 其他可能需要修改的参数"></a>1.4.2 其他可能需要修改的参数</h4><p>此处的参数指，达梦数据库 <code>dm.ini</code> 配置文件里的参数。在开发环境、测试环境可由自己根据实际情况更改，在生产上必须与DBA沟通后进行更改，也需要保持三个环境中参数的一致性。</p>
+<p><code>dm.ini </code>配置文件中，有静态参数、动态参数。静态参数需要重启数据库服务后才生效，在生产上重启数据库是一件严肃的事情，需要修改的参数需要自己做好验证是否能够解决实际的情况。</p>
+<h5 id="1）COMPATIBLE-MODE"><a href="#1）COMPATIBLE-MODE" class="headerlink" title="1）COMPATIBLE_MODE"></a>1）COMPATIBLE_MODE</h5><p>该参数用于控制达梦数据库在部分功能处理时与其他数据库的兼容模式。常用设置：</p>
+<ul>
+<li>0 - 不兼容</li>
+<li>1 - 兼容SQL92标准</li>
+<li>2 - 兼容ORACLE</li>
+<li>3 - 兼容SQL SERVER</li>
+<li>4 - 兼容MYSQL</li>
+</ul>
+<p>通常项目上，此参数设置为2，可以更好的适配基于ORACLE开发的产品代码。</p>
+<h6 id="【例子】"><a href="#【例子】" class="headerlink" title="【例子】"></a>【例子】</h6><p>达梦数据库默认<code>NULL</code> 与<code>空值</code>是不等价的，NULL就是NULL，空值就是空值。某个功能查询需要同时满足它们，需要这样写：</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">select</span> col_A</span><br><span class="line"><span class="keyword">from</span> table_A</span><br><span class="line"><span class="keyword">where</span> col_A <span class="keyword">is</span> <span class="keyword">null</span> <span class="keyword">or</span> col_A <span class="operator">=</span> <span class="string">&#x27;&#x27;</span></span><br><span class="line">;</span><br></pre></td></tr></table></figure>
+
+<p>ORACLE中默认<code>NULL</code> 和<code>空值</code>是等价的，同时满足只需要：</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">select</span> col_A</span><br><span class="line"><span class="keyword">from</span> table_A</span><br><span class="line"><span class="keyword">where</span> col_A <span class="operator">=</span> <span class="string">&#x27;&#x27;</span></span><br><span class="line">;</span><br></pre></td></tr></table></figure>
+
+<p>修改<code>COMPATIBLE_MODE</code>参数为<code>2</code>即可跟在ORACLE上的查询写法一致。</p>
+<h5 id="2）PK-WITH-CLUSTER"><a href="#2）PK-WITH-CLUSTER" class="headerlink" title="2）PK_WITH_CLUSTER"></a>2）PK_WITH_CLUSTER</h5><p>该参数默认为<code>1</code> </p>
+<p>该参数与建表时的主键索引有关，达梦数据库在创建表时，如果创建主键，则默认主键是聚簇索引键。如果没有主键，则默认<code>rowid</code> 作为聚簇索引键</p>
+<h6 id="【例子】-1"><a href="#【例子】-1" class="headerlink" title="【例子】"></a>【例子】</h6><p>当在达梦数据建表时，同时出现主键、字段为大字段CLOB类型的时候，就会报错：</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">create</span> <span class="keyword">table</span> table_A(</span><br><span class="line">	id varchar2(<span class="number">8</span>) <span class="keyword">primary</span> key,</span><br><span class="line">    name varchar2(<span class="number">20</span>),</span><br><span class="line">    addr <span class="type">clob</span></span><br><span class="line">);</span><br><span class="line"></span><br><span class="line"><span class="comment">-- 该语句会报错：表[xxxxxx]中不能同时包含聚集 KEY 和大字段</span></span><br></pre></td></tr></table></figure>
+
+<p>此时，修改参数<code>PK_WITH_CLUSTER=0</code> ，再创建有主键、字段为CLOB类型的表，就可以创建成功。</p>
+<h6 id="【关于聚簇索引】"><a href="#【关于聚簇索引】" class="headerlink" title="【关于聚簇索引】"></a>【关于聚簇索引】</h6><blockquote>
+<p>表（列存储表和堆表除外）都是使用 B+树(以下简称 B 树)索引结构管理的，每一个普通表都有一个聚集索引，数据通过聚集索引键排序，根据聚集索引键可以快速查询任何记录。（即表是一个索引，这个索引名称叫聚集索引，可以理解为创建一个表后，将所有字段放在一起建立一个复合索引，只不过这个不需要我们来创建，系统自动给我们维护了一个）</p>
+</blockquote>
+<blockquote>
+<p>当建表语句未指定聚集索引键，DM 的默认聚集索引键是 ROWID，即记录默认以 ROWID 在页面中排序。ROWID 是 B 树为记录生成的逻辑递增序号，表上不同记录的 ROWID 是不一样的，并且最新插入的记录 ROWID 最大。很多情况下，以 ROWID 建的默认聚集索引并不能提高查询速度，因为实际情况下很少人根据 ROWID 来查找数据。</p>
+</blockquote>
+<p><a href="">原文链接： https://blog.csdn.net/sinat_32856657&#x2F;article&#x2F;details&#x2F;125410328</a></p>
+<h5 id="3）CALS-AS-DECIMAL"><a href="#3）CALS-AS-DECIMAL" class="headerlink" title="3）CALS_AS_DECIMAL"></a>3）CALS_AS_DECIMAL</h5><p>该参数是控制 整数除法运算是否舍弃小数。</p>
+<p>在达梦数据库中，整数相除或者使用<code>ROUND</code>函数，结果如果有小数位，会被直接舍弃，返回整数。</p>
+<p>比如</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">select</span> <span class="number">9</span><span class="operator">/</span><span class="number">2</span> <span class="keyword">from</span> dual;</span><br><span class="line"><span class="comment">-- 会返回4</span></span><br></pre></td></tr></table></figure>
+
+<p>可修改<code>CALC_AS_DECIMAL=1</code> 让运算不舍弃小数位</p>
+<h5 id="关于参数修改方式"><a href="#关于参数修改方式" class="headerlink" title="关于参数修改方式"></a>关于参数修改方式</h5><p>第一种：通过<code>dm.ini</code> 修改参数</p>
+<p>第二种：在达梦SQL窗口中，执行：</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line">sp_set_para_value(old_values, <span class="string">&#x27;param_name&#x27;</span>, new_values);</span><br><span class="line"></span><br><span class="line"><span class="comment">-- 例如</span></span><br><span class="line">sp_set_para_value(<span class="number">1</span>,<span class="string">&#x27;PK_WITH_CLUSTER&#x27;</span>,<span class="number">0</span>);</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="1-5-确认数据库用户权限"><a href="#1-5-确认数据库用户权限" class="headerlink" title="1.5 确认数据库用户权限"></a>1.5 确认数据库用户权限</h3><p>产品需要的用户大部分情况下是使用了DBA角色的权限，但是在项目实施时（特别是在生产环境中），会有部分客户认为产品上 DBA 权限不合理，也会有部分客户授权 DBA 是需要走流程申请。</p>
+<p>所以这一点在前期就需要跟客户确认，用户权限能否授予DBA权限。</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="comment">-- 创建达梦用户脚本</span></span><br><span class="line"></span><br><span class="line"><span class="comment">-- 创建表空间</span></span><br><span class="line"><span class="comment">-- 默认初始大小 500MB，每次自增 40MB，最大 10G</span></span><br><span class="line"><span class="keyword">create</span> <span class="keyword">table</span>space &quot;TS_TEST&quot; datafile <span class="string">&#x27;/dm8/data/DAMENG/TS_TEST.DBF&#x27;</span> size <span class="number">500</span> autoextend <span class="keyword">on</span> next <span class="number">40</span> maxsize <span class="number">10240</span>;    <span class="comment">-- 生产上可扩展为 unlimited</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">create</span> <span class="keyword">user</span> &quot;test&quot; identified <span class="keyword">by</span> &quot;testdata123&quot; <span class="keyword">default</span> tablespace TS_test;</span><br><span class="line"><span class="keyword">grant</span> &quot;DBA&quot; <span class="keyword">to</span> &quot;test&quot;;</span><br><span class="line"><span class="keyword">grant</span> <span class="keyword">delete</span> <span class="keyword">any</span> <span class="keyword">table</span> <span class="keyword">to</span> test;</span><br><span class="line"><span class="keyword">grant</span> <span class="keyword">execute</span> <span class="keyword">any</span> <span class="keyword">procedure</span> <span class="keyword">to</span> test;</span><br><span class="line"><span class="keyword">grant</span> <span class="keyword">insert</span> <span class="keyword">any</span> <span class="keyword">table</span> <span class="keyword">to</span> test;</span><br><span class="line"><span class="keyword">grant</span> <span class="keyword">select</span> <span class="keyword">any</span> dictionary <span class="keyword">to</span> test;</span><br><span class="line"><span class="keyword">grant</span> <span class="keyword">select</span> <span class="keyword">any</span> <span class="keyword">table</span> <span class="keyword">to</span> test;</span><br><span class="line"><span class="keyword">grant</span> unlimited tablespace <span class="keyword">to</span> test;</span><br><span class="line"><span class="keyword">grant</span> <span class="keyword">update</span> <span class="keyword">any</span> <span class="keyword">table</span> <span class="keyword">to</span> test;</span><br></pre></td></tr></table></figure>
+
+
+
+<p>甚至有的客户（我遇到的一个），认为<code>ANY</code>权限也是有大隐患的，需要针对到具体表名的权限。</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">GRANT</span> <span class="keyword">DELETE</span> <span class="keyword">ANY</span> <span class="keyword">TABLE</span> <span class="keyword">TO</span> TEST;</span><br><span class="line"><span class="keyword">GRANT</span> <span class="keyword">SELECT</span> <span class="keyword">ANY</span> <span class="keyword">TABLE</span> <span class="keyword">TO</span> TEST;</span><br><span class="line"><span class="keyword">GRANT</span> <span class="keyword">UPDATE</span> <span class="keyword">ANY</span> <span class="keyword">TABLE</span> <span class="keyword">TO</span> TEST;</span><br><span class="line"><span class="keyword">GRANT</span> <span class="keyword">INSERT</span> <span class="keyword">ANY</span> <span class="keyword">TABLE</span> <span class="keyword">TO</span> TEST;</span><br></pre></td></tr></table></figure>
+
+<p>这种情况就没办法了，很麻烦，一个成熟且功能复杂的产品，可能标准版初始的表就有上千张（还不包括后续的开发新的功能表），存储过程、自定义函数等等也有上千个。每个存储过程用到的表都不一样，要一一梳理哪些用户select，哪个用户要delete等等，后期就需要额外的花时间去进行梳理。<del>（虽然更安全、合规，但是麻烦的是我~吐槽一下）</del></p>
+<h2 id="2-达梦权限说明"><a href="#2-达梦权限说明" class="headerlink" title="2 达梦权限说明"></a>2 达梦权限说明</h2><p>通常我们在部署时，JDBC 中的连接，我们使用 <code>WOLF</code>  <code>WOLFDATA</code> 用户去连接，或者使用 <code>WOLF</code> 去配置两个 JDBC 连接，指向 <code>WOLF</code>  <code>WOLFDATA</code> 模式（达梦中 schema 的概念，可以把它当成 oracle 的实例概念）。</p>
+<p>使用了 <code>WOLF</code> 用户去配置 JDBC 连接，那么此时，在系统进行日常操作的时候，在数据库中就是基于 <code>WOLF</code> 用户对对各个对象（TABLE \ SP \ FUNCTION \ VIEW \ TYPE \ PACKAGE 等）进行增删改查操作。</p>
+<p>通常情况下，框架提供的默认权限脚本权限多含 <code>DBA</code> 或者 <code>ANY</code> 权限，但是在生产环境上其实是不被允许的。在用户具备 DBA \ DROP ANY OBJECTS 的情况，能做的事情比较多，包括了对表空间（数据文件）的更改、跨用户删除表 等危险操作。</p>
+<p>因此在权限上，有的客户会要求梳理到具体的表需要什么权限。</p>
+<figure class="highlight perl"><table><tr><td class="code"><pre><span class="line"><span class="number">1</span>.除了本身的 ROURCE 角色外，需要对系统表的查询权限，SOV\SVI 角色</span><br><span class="line"><span class="number">2</span>.需要对 WOLFDATA 具有完全执行权，WOLFDATA 下一般只有表，对这些表有增删改查即可</span><br><span class="line"><span class="number">3</span>.对产品用户的对象：（不包含达梦自身用户的对象）</span><br><span class="line">  所有 TABLE 有 INSERT \ DELETE \ UPDATE \ SELECT 权限</span><br><span class="line">  所有 VIEW  有 SELECT 权限</span><br><span class="line">  所有 SP    有 EXECUTE 权限</span><br><span class="line">  所有的 FUNC 有 EXECUTE</span><br><span class="line">  所有的 PACKAGE 有 EXECUTE  （达梦的 TYPE 类型集合到了 PACKAGE 里）</span><br><span class="line">  所有的 CLASS 有 EXECUTE</span><br></pre></td></tr></table></figure>
+
+
+
+<figure class="highlight perl"><table><tr><td class="code"><pre><span class="line">其他的产品用户，权限则需要有自身的 RESOURCE 用户外，</span><br><span class="line">还应该从自身的 SP 中逐一排查需要的 跨用户对象的某个权限</span><br><span class="line"></span><br><span class="line">比如 RISKCONFIG 的 SP 中通常含有对中间层表的 DELETE \ INSERT \ SELECT \ UPDATE</span><br><span class="line">则应该为 RISKCONFIG 用户赋予中间层表的 DELETE \ INSERT \ SELECT \ UPDATE 权限。</span><br><span class="line"></span><br><span class="line">不需要 WOLF 对中间层表有权限，WOLF 只需要有执行该 SP 的权限即可。</span><br></pre></td></tr></table></figure>
+
+
+
+
+
+<p>前期将这些沟通好，等客户给服务器的相关信息，就可以开始着手准备实施部署产品了。</p>
+]]></content>
+      <categories>
+        <category>实施部署</category>
+        <category>信创</category>
+      </categories>
+      <tags>
+        <tag>实施</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>实施部署-达梦数据库linux版的安装（二）</title>
+    <url>/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E8%BE%BE%E6%A2%A6%E6%95%B0%E6%8D%AE%E5%BA%93%E7%9A%84%E5%AE%89%E8%A3%85/</url>
+    <content><![CDATA[<h2 id="达梦数据库的安装"><a href="#达梦数据库的安装" class="headerlink" title="达梦数据库的安装"></a>达梦数据库的安装</h2><p>*仅适用于LINUX安装（windows安装太easy了）</p>
+<p>在搭建客户的开发环境、测试环境，数据库多为实施自行安装，并没有太大的要求，只需要注意一些参数，到时候与生产环境保持一致即可。生产环境，会与客户沟通达梦数据库的参数，比如：页大小、簇大小、字符集、大小写敏感等一些需要在注册实例时就配置的参数。</p>
+<p>在上一文章《实施部署-信创项目环境搭建准备（一）》已经沟通过参数了，这篇总结达梦数据库的安装和初始化实例的步骤。</p>
+<p>先贴个达梦官网技术文档地址：（步骤都可以在这里找到的）</p>
+<p><a href="https://eco.dameng.com/document/dm/zh-cn/start/dm-install-linux.html">https://eco.dameng.com/document/dm/zh-cn/start/dm-install-linux.html</a></p>
+<h3 id="1-新建DMDBA用户"><a href="#1-新建DMDBA用户" class="headerlink" title="1 新建DMDBA用户"></a>1 新建DMDBA用户</h3><p>进入Linux服务器，用<code>root</code>用户创建：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"># 创建用户组</span><br><span class="line">groupadd dinstall</span><br><span class="line"># 创建用户</span><br><span class="line">useradd -g dinstall -m -d /home/dmdba -s /bin/bash dmdba</span><br><span class="line"># 修改用户密码</span><br><span class="line">passwd dmdba</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="2-修改文件打开最大数"><a href="#2-修改文件打开最大数" class="headerlink" title="2 修改文件打开最大数"></a>2 修改文件打开最大数</h3><figure class="highlight perl"><table><tr><td class="code"><pre><span class="line">vi /etc/security/limits.conf</span><br><span class="line"><span class="comment"># 在conf文件内容的最后添加</span></span><br><span class="line">dmdba hard nofile <span class="number">65536</span></span><br><span class="line">dmdba soft nofile <span class="number">65536</span></span><br><span class="line">dmdba hard stack <span class="number">32768</span></span><br><span class="line">dmdba soft stack <span class="number">16384</span></span><br><span class="line"><span class="comment"># :wq 保存</span></span><br></pre></td></tr></table></figure>
+
+<p>修改后切换到<code>dmdba</code>用户查看是否生效</p>
+<figure class="highlight perl"><table><tr><td class="code"><pre><span class="line">su - dmdba</span><br><span class="line">ulimit -a</span><br></pre></td></tr></table></figure>
+
+<img src="/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E8%BE%BE%E6%A2%A6%E6%95%B0%E6%8D%AE%E5%BA%93%E7%9A%84%E5%AE%89%E8%A3%85/%E5%9B%BE%E7%89%87.png" class="" title="img">
+
+
+
+<h3 id="3-创建数据库安装目录"><a href="#3-创建数据库安装目录" class="headerlink" title="3 创建数据库安装目录"></a>3 创建数据库安装目录</h3><figure class="highlight perl"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 创建目录</span></span><br><span class="line">cd /home</span><br><span class="line"><span class="keyword">mkdir</span> dm</span><br><span class="line"><span class="comment"># 修改目录所属主、所属组</span></span><br><span class="line"><span class="keyword">chown</span> dmdba:dinstall -R dm</span><br><span class="line"><span class="comment"># 给目录授权</span></span><br><span class="line"><span class="keyword">chmod</span> -R <span class="number">755</span> dm</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="4-挂载达梦镜像"><a href="#4-挂载达梦镜像" class="headerlink" title="4 挂载达梦镜像"></a>4 挂载达梦镜像</h3><p>将<code>达梦数据库安装包.iso</code> 文件上传到数据库服务器上的任意位置，例如：</p>
+<figure class="highlight perl"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 创建挂载目录</span></span><br><span class="line"><span class="keyword">mkdir</span> /mnt</span><br><span class="line"><span class="comment"># 给执行权限</span></span><br><span class="line"><span class="keyword">chmod</span> <span class="number">755</span> 达梦数据库安装包.iso</span><br><span class="line"><span class="comment"># 挂载</span></span><br><span class="line">mount -o loop /home/dmdba/dm8_20230713_FTarm_kylin10_sp1_64_include_symbols.iso /mnt</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="5-安装数据库"><a href="#5-安装数据库" class="headerlink" title="5 安装数据库"></a>5 安装数据库</h3><figure class="highlight perl"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 切换创建好的达梦数据库用户</span></span><br><span class="line">su - dmdba</span><br><span class="line"><span class="comment"># 进入挂载目录</span></span><br><span class="line">cd /mnt</span><br><span class="line"><span class="comment"># 安装</span></span><br><span class="line">./DMInstall.bin -i</span><br></pre></td></tr></table></figure>
+
+<p>步骤如图：（其中安装目录选择创建的达梦数据库安装目录）</p>
+<img src="/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E8%BE%BE%E6%A2%A6%E6%95%B0%E6%8D%AE%E5%BA%93%E7%9A%84%E5%AE%89%E8%A3%85/%E5%9B%BE%E7%89%87-1717688671054.png" class="" title="img">
+
+<img src="/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E8%BE%BE%E6%A2%A6%E6%95%B0%E6%8D%AE%E5%BA%93%E7%9A%84%E5%AE%89%E8%A3%85/%E5%9B%BE%E7%89%87-1717688677231.png" class="" title="img">
+
+
+
+<p>显示安装结束后，切换到root用户</p>
+<figure class="highlight perl"><table><tr><td class="code"><pre><span class="line">su - root</span><br><span class="line"><span class="comment"># 执行</span></span><br><span class="line">/home/dm/script/root/root_install.sh</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="6-注册实例"><a href="#6-注册实例" class="headerlink" title="6 注册实例"></a>6 注册实例</h3><p>说明：</p>
+<p>达梦数据库页大小、簇大小、大小写敏感、字符集都为注册实例时需要配置的，这些参数一经注册后不能修改，除非重新注册实例或者重装数据库。参数在《实施部署-信创项目环境搭建准备（一）》已经做了总结。</p>
+<h4 id="6-1-使用默认参数注册"><a href="#6-1-使用默认参数注册" class="headerlink" title="6.1 使用默认参数注册"></a>6.1 使用默认参数注册</h4><figure class="highlight perl"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 切换到dmdba用户</span></span><br><span class="line">su - dmdba</span><br><span class="line"><span class="comment"># 进入dm/bin目录</span></span><br><span class="line">cd /home/dm/bin</span><br><span class="line"><span class="comment"># 执行初始化命令</span></span><br><span class="line">./dminit path=<span class="regexp">/home/dm</span>/data</span><br><span class="line"><span class="comment"># 类似下图</span></span><br></pre></td></tr></table></figure>
+
+<img src="/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E8%BE%BE%E6%A2%A6%E6%95%B0%E6%8D%AE%E5%BA%93%E7%9A%84%E5%AE%89%E8%A3%85/%E5%9B%BE%E7%89%87-1717688969600.png" class="" title="img">
+
+
+
+<figure class="highlight perl"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 切换root用户</span></span><br><span class="line">su - root</span><br><span class="line"><span class="comment"># 进入相关目录</span></span><br><span class="line">cd /home/dm/script/root</span><br><span class="line"><span class="comment"># 执行注册服务命令</span></span><br><span class="line">./dm_service_installer.sh -t dmserver -dm_ini /dm/data/DAMENG/dm.ini -p DMSERVER</span><br><span class="line"><span class="comment"># 类似下图</span></span><br></pre></td></tr></table></figure>
+
+<img src="/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E8%BE%BE%E6%A2%A6%E6%95%B0%E6%8D%AE%E5%BA%93%E7%9A%84%E5%AE%89%E8%A3%85/%E5%9B%BE%E7%89%87-1717689078764.png" class="" title="img">
+
+<p>这个操作将生成 <code>dm.ini</code> 配置文件，实例注册到哪个目录，配置文件就在哪个目录</p>
+<h4 id="6-2-使用自定义参数注册"><a href="#6-2-使用自定义参数注册" class="headerlink" title="6.2 使用自定义参数注册"></a>6.2 使用自定义参数注册</h4><p>步骤与 6.1 相同，不同的步骤只有一个，在执行初始化命令时，需要在后边接上需要设置的页大小、簇大小、字符集、大小写敏感等等相关参数</p>
+<figure class="highlight perl"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 参考</span></span><br><span class="line">./dminit path=<span class="regexp">/home/dm</span>/data PAGE_SIZE=<span class="number">32</span> EXTENT_SIZE=<span class="number">32</span> CASE_SENSITIVE=<span class="keyword">y</span> CHARSET=<span class="number">0</span> DB_NAME=DMDB INSTANCE_NAME=DmDBSERVER PORT_NUM=<span class="number">5236</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 页大小 PAGE_SIZE</span></span><br><span class="line"><span class="comment"># 簇大小 EXTENT_SIZE</span></span><br><span class="line"><span class="comment"># 大小写敏感 CASE_SENSITIVE</span></span><br><span class="line"><span class="comment"># 字符集 CHARSET</span></span><br><span class="line"><span class="comment"># 数据库名 DB_NAME</span></span><br><span class="line"><span class="comment"># 实例名 INSTANCE_NAME</span></span><br><span class="line"><span class="comment"># 端口 PORT_NUM</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="7-可选参数配置"><a href="#7-可选参数配置" class="headerlink" title="7 可选参数配置"></a>7 可选参数配置</h3><p>具体见《实施部署-信创项目环境搭建准备（一）》的1.4.2步骤</p>
+<h3 id="8-替换dm-key"><a href="#8-替换dm-key" class="headerlink" title="8 替换dm.key"></a>8 替换dm.key</h3><p>替换为正式的dm.key，可直接上传正式的key到dm&#x2F;bin目录直接替换</p>
+<p>或者上传任意目录，使用cp命令替换</p>
+<h3 id="9-启动数据库"><a href="#9-启动数据库" class="headerlink" title="9 启动数据库"></a>9 启动数据库</h3><p>开发、测试环境启动</p>
+<figure class="highlight perl"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 启动数据库服务</span></span><br><span class="line">systemctl start DmServiceDMSERVER.service</span><br></pre></td></tr></table></figure>
+
+
+
+<p>生产上，一般会安装达梦的监控守护模式</p>
+<figure class="highlight perl"><table><tr><td class="code"><pre><span class="line">cd /home/dm/bin</span><br><span class="line">DmServiceDM start</span><br><span class="line">DmWatcherServiceDM start</span><br></pre></td></tr></table></figure>
+
+
+
+<figure class="highlight perl"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 开发、测试环境</span></span><br><span class="line"><span class="comment"># 停止</span></span><br><span class="line">systemctl stop DmServiceDMSERVER.service</span><br><span class="line"><span class="comment"># 重启</span></span><br><span class="line">systemctl restart DmServiceDMSERVER.service</span><br><span class="line"></span><br><span class="line"><span class="comment"># 生产环境</span></span><br><span class="line">DmWatcherServiceDM stop         <span class="comment"># 先停监控</span></span><br><span class="line">DmServiceDM restart</span><br><span class="line">DmWatcherServiceDM start</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="达梦集群守护"><a href="#达梦集群守护" class="headerlink" title="达梦集群守护"></a>达梦集群守护</h2><p>达梦集群守护是生产上才使用的，一般由DBA操作。</p>
+<p>生产环境采用双活形式部署，应用服务器上使用达梦数据库连接服务名进行连接。达梦在安装完成时会在数据库服务器上生产&#x2F;etc&#x2F;dm_svc.conf 文件，可以在该文件中进行添加配置，同时需要在应用服务器上【&#x2F;etc&#x2F;dm_svc.conf】文件（此文件为新增）中配置：</p>
+<figure class="highlight perl"><table><tr><td class="code"><pre><span class="line">TIME_ZONE=(<span class="number">480</span>)</span><br><span class="line">LANGUAGE=(cn)</span><br><span class="line">GRP1=(<span class="number">192.168</span>.xxx.<span class="number">1</span>:<span class="number">5236</span>,<span class="number">192.168</span>.xxx.<span class="number">2</span>:<span class="number">5236</span>)</span><br><span class="line">[GRP1]</span><br><span class="line">TIME+ZONE=(+<span class="number">480</span>)</span><br><span class="line">LOGIN_MODE=(<span class="number">1</span>)</span><br><span class="line">SWITCH_TIME=(<span class="number">3</span>)</span><br><span class="line">SWITCH_INTERVAL=(<span class="number">200</span>)</span><br></pre></td></tr></table></figure>
+
+
+
+<p>配置说明如下：</p>
+<table>
+<thead>
+<tr>
+<th>LOGIN_MODE</th>
+<th>服务名方式登录，始终会优先登录主库；</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>LOGIN_MODE</td>
+<td>表示是否仅登录主库或者备库，可以配置为 0、1 或 2。2表示不登录 Standby 模式的库，如果系统中只有 Standby 模式的库，登录失败并报错。</td>
+</tr>
+<tr>
+<td>SWITCH_TIME</td>
+<td>检测到数据库实例故障时，接口在服务器之间切换的次数；超过设置次数没有连接到有效数据库时，断开连接并报错。</td>
+</tr>
+<tr>
+<td>SWITCH_INTERVAL</td>
+<td>表示在服务器之间切换的时间间隔，单位为毫秒。</td>
+</tr>
+</tbody></table>
+]]></content>
+      <categories>
+        <category>实施部署</category>
+        <category>信创</category>
+      </categories>
+      <tags>
+        <tag>实施</tag>
+        <tag>达梦</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>SQL-违反表的唯一约束条件（主键冲突）问题</title>
+    <url>/2024/06/03/SQL-%E4%B8%BB%E9%94%AE%E5%86%B2%E7%AA%81%E9%97%AE%E9%A2%98/</url>
+    <content><![CDATA[<h2 id="问题"><a href="#问题" class="headerlink" title="问题"></a>问题</h2><p>实际的项目中，采集上游数据到数据集市的贴源层 &gt;&gt; 跑数据转换任务，将数据写入到我们的业务表，在跑转换任务的时候，时不时会报错主键冲突。转换里，通常写着<code>insert</code> <code>update</code> 语句，当向表执行插入和更新操作，时不时出现报错：违反表的唯一约束条件。</p>
+<img src="/2024/06/03/SQL-%E4%B8%BB%E9%94%AE%E5%86%B2%E7%AA%81%E9%97%AE%E9%A2%98/image-20240603204053362.png" class="" title="image-20240603204053362">
+
+<p>因为在实际业务中，中间层或者业务层表，通常情况下，是具有主键的（可能是单一主键，可能是复合主键）。</p>
+<span id="more"></span>
+
+<h2 id="常见的两种情况"><a href="#常见的两种情况" class="headerlink" title="常见的两种情况"></a>常见的两种情况</h2><p>1）目标表里已经有了一条数据A，但是转换任务又往目标表里写入一条数据A，导致的报错；</p>
+<p>2）目标表里没有数据，但是转换里，使用的关联条件产生了多条重复数据，导致的报错。</p>
+<p>根据这两种情况对数据进行排查，看看是哪些数据重复了。</p>
+<h2 id="思路"><a href="#思路" class="headerlink" title="思路"></a>思路</h2><p>1.根据报错的主键名称，查找该索引名是哪张表的主键名</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">select</span> <span class="operator">*</span></span><br><span class="line">  <span class="keyword">from</span> all_indexes a</span><br><span class="line"> <span class="keyword">where</span> a.index_name <span class="operator">=</span> <span class="string">&#x27;报错的主键名&#x27;</span>;</span><br></pre></td></tr></table></figure>
+
+<img src="/2024/06/03/SQL-%E4%B8%BB%E9%94%AE%E5%86%B2%E7%AA%81%E9%97%AE%E9%A2%98/image-20240603212340949.png" class="" title="image-20240603212340949">
+
+
+
+<p>2.查看该表，查看该主键由哪些字段组成</p>
+<img src="/2024/06/03/SQL-%E4%B8%BB%E9%94%AE%E5%86%B2%E7%AA%81%E9%97%AE%E9%A2%98/image-20240603212455621.png" class="" title="image-20240603212455621">
+
+
+
+<p>3.对于第一种情况，根据这些字段，将目标表与转换里源表进行<code>join</code>，对索引字段进行<code>count</code>，查看是否有重复数据</p>
+<p>例如这张表在转换里源表（from的表）为 <code>ct.st_xxx</code>，那么可以如下，查到重复的数据</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">select</span> a.contract_no, a.stock_account, <span class="built_in">count</span>(<span class="operator">*</span>)</span><br><span class="line">  <span class="keyword">from</span> sett.t_ref_contract a</span><br><span class="line">  <span class="keyword">join</span> ct.st_xxx b</span><br><span class="line">    <span class="keyword">on</span> a.contract_no <span class="operator">=</span> b.jys <span class="comment">-- 关联字段</span></span><br><span class="line">   <span class="keyword">and</span> a.stock_account <span class="operator">=</span> b.zqzh</span><br><span class="line"> <span class="keyword">group</span> <span class="keyword">by</span> a.contract_no, a.stock_account</span><br><span class="line"><span class="keyword">having</span> <span class="built_in">count</span>(<span class="operator">*</span>) <span class="operator">&gt;</span> <span class="number">1</span>;</span><br></pre></td></tr></table></figure>
+
+<p>然后，对比该数据，是否完全一致（因为数据可能出现只有主键字段是相同的，但是其他字段不同的情况）</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">select</span> a.<span class="operator">*</span></span><br><span class="line">  <span class="keyword">from</span> sett.t_ref_contract a</span><br><span class="line">  <span class="keyword">join</span> ct.st_xxx b</span><br><span class="line">    <span class="keyword">on</span> a.contract_no <span class="operator">=</span> b.jys <span class="comment">-- 关联字段</span></span><br><span class="line">   <span class="keyword">and</span> a.stock_account <span class="operator">=</span> b.zqzh</span><br><span class="line"> <span class="keyword">where</span> a.contract_no <span class="operator">=</span> <span class="string">&#x27;查到的contract_no&#x27;</span></span><br><span class="line">   <span class="keyword">and</span> a.stock_account <span class="operator">=</span> <span class="string">&#x27;查到的stock_account&#x27;</span></span><br><span class="line"> <span class="keyword">group</span> <span class="keyword">by</span> a.contract_no, a.stock_account;</span><br></pre></td></tr></table></figure>
+
+<p>3.1）若一致，则可将目标表里的数据删掉</p>
+<p>3.2）若不一致，应咨询业务，它们是否有区别，根据业务沟通后的方案，将数据备份后，对其更改或删除等操作</p>
+<p>4.对于第二种情况，则需要看转换里，它的<code>insert</code> 或者<code>update</code> 的逻辑，类似：</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">insert</span> table_a (</span><br><span class="line">	col_1,</span><br><span class="line">    col_2,</span><br><span class="line">    ...</span><br><span class="line">)</span><br><span class="line"><span class="keyword">select</span> col_a,</span><br><span class="line">	   col_b,</span><br><span class="line">	   ...</span><br><span class="line">  <span class="keyword">from</span> table_b t1</span><br><span class="line">  <span class="keyword">join</span> table_c t2</span><br><span class="line">    <span class="keyword">on</span> t1.col_a <span class="operator">=</span> t2.col_a</span><br><span class="line">   <span class="keyword">and</span> t1.col_b <span class="operator">=</span> t2.col_b;</span><br></pre></td></tr></table></figure>
+
+<p>然后对关联条件进行检查，看看是不是关联条件出现了 <code>1:N</code> <code>N:N</code> 的情况，如果是，则根据代码的逻辑，对该数据产生的原因进行定位，根据实际情况进行解决。</p>
+]]></content>
+      <categories>
+        <category>数据库</category>
+      </categories>
+      <tags>
+        <tag>SQL</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>经验杂谈-面对个性化的产品如何下手</title>
+    <url>/2024/06/04/%E7%BB%8F%E9%AA%8C%E6%9D%82%E8%B0%88-%E4%B8%AA%E6%80%A7%E5%8C%96%E7%B3%BB%E7%BB%9F%E5%A6%82%E4%BD%95%E5%85%A5%E6%89%8B/</url>
+    <content><![CDATA[<p>《吐槽一下，让心情发泄一下》</p>
+<p>今天在工作的时候，烦恼的时候突然蹦出来一个思路。针对单个功能个性化的思路。</p>
+<p>现在的工作的公司，多数都是靠着个性化服务来做产品，导致了一个产品的标准版，到了客户现场环境，会根据客户的实际使用要求，对产品的功能、转换去做个性化开发。导致了刚到现场接触这个产品的时候常常因为困惑感到无从下手。</p>
+<span id="more"></span>
+
+<p>特别是，一上来就让你排查生产问题的时候。。。。</p>
+<img src="/2024/06/04/%E7%BB%8F%E9%AA%8C%E6%9D%82%E8%B0%88-%E4%B8%AA%E6%80%A7%E5%8C%96%E7%B3%BB%E7%BB%9F%E5%A6%82%E4%BD%95%E5%85%A5%E6%89%8B/image-20240604212748892.png" class="" title="image-20240604212748892">
+
+<p>但是表面还是要装作很谈定，装作很熟悉的样子，打开控制台，看看功能背后用了什么支持的文件或者代码，，，</p>
+<p>打开数据库看看对应的SP，看看主表join表有没有数据，关联条件是不是导致了数据重复，会不会过滤掉部分数据，看看where条件是不是把数据过滤掉，，，</p>
+<p>看看上游数据是不是正常的，转换后数据是不是正常的，，，</p>
+<img src="/2024/06/04/%E7%BB%8F%E9%AA%8C%E6%9D%82%E8%B0%88-%E4%B8%AA%E6%80%A7%E5%8C%96%E7%B3%BB%E7%BB%9F%E5%A6%82%E4%BD%95%E5%85%A5%E6%89%8B/image-20240604213252623.png" class="" title="image-20240604213252623">
+
+
+
+
+
+<p> 一个经过多年完善的产品，越成熟意味着越复杂。刚进公司的第一年，做着游走打支援的活，基本是哪里有活就去哪，哪里缺人手就去哪。做多以后呢，好像上级对我的要求就一下子就拔高了？？？总是会默认你是会的。这一点就很奇怪，支援式的工作，无法有长久的时间去深入了解一个产品。特别是一些反洗钱、异常交易这种与业务勾稽关系多，模块又多的产品。<del>因为公司对这些产品是没有文档介绍的（至少我没见过，辣鸡）~~~~做了一年半没见过公司的标准版产品长啥样，现场实施的痛！</del></p>
+<p>没接触一个项目得自己摸索，摸索一点门道，还没咋熟悉，又换一个项目（对于我而言是新的），特别是公司极度缺人，交接也没交接，技术支持也没有，内心：</p>
+<img src="/2024/06/04/%E7%BB%8F%E9%AA%8C%E6%9D%82%E8%B0%88-%E4%B8%AA%E6%80%A7%E5%8C%96%E7%B3%BB%E7%BB%9F%E5%A6%82%E4%BD%95%E5%85%A5%E6%89%8B/image-20240604212459209.png" class="" title="image-20240604212459209">
+
+
+
+<p>而且每天都在苦恼业务的提问<del>刁难！</del>，心里只有：</p>
+<img src="/2024/06/04/%E7%BB%8F%E9%AA%8C%E6%9D%82%E8%B0%88-%E4%B8%AA%E6%80%A7%E5%8C%96%E7%B3%BB%E7%BB%9F%E5%A6%82%E4%BD%95%E5%85%A5%E6%89%8B/image-20240604212233306.png" class="" title="image-20240604212233306">
+
+
+
+
+
+
+
+<p>之前在看期货风险度监控的时候，这个功能总是只出了一个来源期货数仓的期货账户数据，还有好几个O32的期货账户数据监控不出来，纳闷了好久，里边三段逻辑有一段限制了日期，有一段限制了账户，只有一段是没有做限制的。</p>
+<p>上一个人做了一半，就走了。。。</p>
+<p>我就被急急忙忙拉过来继续完成上一个人的工作，我也不知道现场这边是怎么做的，反正看仿真环境代码里有2个限制，再对比一下生产环境，好家伙，也有2个限制。我也不知道一段限制日期，一段限制账户。看着生产也这样，想想接触的个性化的转换代码，功能代码多了去了。只是当这是个性化的一部分。</p>
+<p>为了能让其他的期货账户的数据被监控出来，我前前后后看了上游数据、转换后的数据、以及业务表的数据，看了转换的条件，看了监控的逻辑条件。纳闷，代码、数据没什么问题啊，为什么没出来。。。</p>
+<p>怎么我一来就没数据。没做完，又被拉去做另一个更紧急的项目上了，这个就搁置了。</p>
+<p>今天又过去，继续看。找了熟悉现场的同事问了问，同事已经不记得了。问了产品部，产品部答复该代码非标准版代码，应该为现场实施修改的，具体需要咨询现场的实施。</p>
+<p>卧槽，哪还有人咨询。</p>
+<p>后边我突然想到，我也没见过标准版代码是啥，我找产品部拿不就好了，我之前咋脑子不灵光</p>
+<p>看了标准版，代码里没有对期货账户做限制，这里为啥要限制，尝试注释掉，然后重新跑一下监控，其他期货账户数据被监控出来。。。。</p>
+<p>啊~</p>
+<p><strong>以后遇到个性化的代码，一定先跟标准版对比，然后去问熟悉的人（同事或者客户）看看为什么要这么做个性化，搞懂原因后，看这个代码就顺眼多了，问题自然好解决。</strong></p>
+]]></content>
+      <categories>
+        <category>工作思考</category>
+      </categories>
+      <tags>
+        <tag>经验记录</tag>
       </tags>
   </entry>
 </search>

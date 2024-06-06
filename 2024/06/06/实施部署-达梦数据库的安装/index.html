@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/touxiang.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/touxiang.ico">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/touxiang.ico">
+  <link rel="mask-icon" href="/images/touxiang.ico" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha256-XOqroi11tY4EFQMR9ZYwZWKj5ZXiftSx36RRuC3anlA=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"weiqifun.github.io","root":"/","images":"/images","scheme":"Pisces","darkmode":false,"version":"8.20.0","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"copycode":{"enable":true,"style":"default","show_result":true},"fold":{"enable":false,"height":500},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="信创类产品的实施部署从 0 到 1 ，达梦数据库在LINUX服务器上的安装与初始化实例...">
+<meta property="og:type" content="article">
+<meta property="og:title" content="实施部署-达梦数据库linux版的安装（二）">
+<meta property="og:url" content="https://weiqifun.github.io/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E8%BE%BE%E6%A2%A6%E6%95%B0%E6%8D%AE%E5%BA%93%E7%9A%84%E5%AE%89%E8%A3%85/">
+<meta property="og:site_name" content="WeiQi Blog">
+<meta property="og:description" content="信创类产品的实施部署从 0 到 1 ，达梦数据库在LINUX服务器上的安装与初始化实例...">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E8%BE%BE%E6%A2%A6%E6%95%B0%E6%8D%AE%E5%BA%93%E7%9A%84%E5%AE%89%E8%A3%85/%E5%9B%BE%E7%89%87.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E8%BE%BE%E6%A2%A6%E6%95%B0%E6%8D%AE%E5%BA%93%E7%9A%84%E5%AE%89%E8%A3%85/%E5%9B%BE%E7%89%87-1717688671054.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E8%BE%BE%E6%A2%A6%E6%95%B0%E6%8D%AE%E5%BA%93%E7%9A%84%E5%AE%89%E8%A3%85/%E5%9B%BE%E7%89%87-1717688677231.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E8%BE%BE%E6%A2%A6%E6%95%B0%E6%8D%AE%E5%BA%93%E7%9A%84%E5%AE%89%E8%A3%85/%E5%9B%BE%E7%89%87-1717688969600.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E8%BE%BE%E6%A2%A6%E6%95%B0%E6%8D%AE%E5%BA%93%E7%9A%84%E5%AE%89%E8%A3%85/%E5%9B%BE%E7%89%87-1717689078764.png">
+<meta property="article:published_time" content="2024-06-06T15:22:03.000Z">
+<meta property="article:modified_time" content="2024-06-06T16:09:41.501Z">
+<meta property="article:author" content="Wei Qi">
+<meta property="article:tag" content="实施">
+<meta property="article:tag" content="达梦">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://weiqifun.github.io/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E8%BE%BE%E6%A2%A6%E6%95%B0%E6%8D%AE%E5%BA%93%E7%9A%84%E5%AE%89%E8%A3%85/%E5%9B%BE%E7%89%87.png">
+
+
+<link rel="canonical" href="https://weiqifun.github.io/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E8%BE%BE%E6%A2%A6%E6%95%B0%E6%8D%AE%E5%BA%93%E7%9A%84%E5%AE%89%E8%A3%85/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://weiqifun.github.io/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E8%BE%BE%E6%A2%A6%E6%95%B0%E6%8D%AE%E5%BA%93%E7%9A%84%E5%AE%89%E8%A3%85/","path":"2024/06/06/实施部署-达梦数据库的安装/","title":"实施部署-达梦数据库linux版的安装（二）"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>实施部署-达梦数据库linux版的安装（二） | WeiQi Blog</title>
+  
+
+
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">WeiQi Blog</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">前进 & 思考</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%BE%BE%E6%A2%A6%E6%95%B0%E6%8D%AE%E5%BA%93%E7%9A%84%E5%AE%89%E8%A3%85"><span class="nav-number">1.</span> <span class="nav-text">达梦数据库的安装</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-%E6%96%B0%E5%BB%BADMDBA%E7%94%A8%E6%88%B7"><span class="nav-number">1.1.</span> <span class="nav-text">1 新建DMDBA用户</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-%E4%BF%AE%E6%94%B9%E6%96%87%E4%BB%B6%E6%89%93%E5%BC%80%E6%9C%80%E5%A4%A7%E6%95%B0"><span class="nav-number">1.2.</span> <span class="nav-text">2 修改文件打开最大数</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-%E5%88%9B%E5%BB%BA%E6%95%B0%E6%8D%AE%E5%BA%93%E5%AE%89%E8%A3%85%E7%9B%AE%E5%BD%95"><span class="nav-number">1.3.</span> <span class="nav-text">3 创建数据库安装目录</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-%E6%8C%82%E8%BD%BD%E8%BE%BE%E6%A2%A6%E9%95%9C%E5%83%8F"><span class="nav-number">1.4.</span> <span class="nav-text">4 挂载达梦镜像</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-%E5%AE%89%E8%A3%85%E6%95%B0%E6%8D%AE%E5%BA%93"><span class="nav-number">1.5.</span> <span class="nav-text">5 安装数据库</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-%E6%B3%A8%E5%86%8C%E5%AE%9E%E4%BE%8B"><span class="nav-number">1.6.</span> <span class="nav-text">6 注册实例</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#6-1-%E4%BD%BF%E7%94%A8%E9%BB%98%E8%AE%A4%E5%8F%82%E6%95%B0%E6%B3%A8%E5%86%8C"><span class="nav-number">1.6.1.</span> <span class="nav-text">6.1 使用默认参数注册</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#6-2-%E4%BD%BF%E7%94%A8%E8%87%AA%E5%AE%9A%E4%B9%89%E5%8F%82%E6%95%B0%E6%B3%A8%E5%86%8C"><span class="nav-number">1.6.2.</span> <span class="nav-text">6.2 使用自定义参数注册</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-%E5%8F%AF%E9%80%89%E5%8F%82%E6%95%B0%E9%85%8D%E7%BD%AE"><span class="nav-number">1.7.</span> <span class="nav-text">7 可选参数配置</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#8-%E6%9B%BF%E6%8D%A2dm-key"><span class="nav-number">1.8.</span> <span class="nav-text">8 替换dm.key</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#9-%E5%90%AF%E5%8A%A8%E6%95%B0%E6%8D%AE%E5%BA%93"><span class="nav-number">1.9.</span> <span class="nav-text">9 启动数据库</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%BE%BE%E6%A2%A6%E9%9B%86%E7%BE%A4%E5%AE%88%E6%8A%A4"><span class="nav-number">2.</span> <span class="nav-text">达梦集群守护</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Wei Qi"
+      src="/images/happydog.png">
+  <p class="site-author-name" itemprop="name">Wei Qi</p>
+  <div class="site-description" itemprop="description">一路走来，有点艰难</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">5</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/weiqifun/weiqifun.github.io" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;weiqifun&#x2F;weiqifun.github.io" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://weiqifun.github.io/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E8%BE%BE%E6%A2%A6%E6%95%B0%E6%8D%AE%E5%BA%93%E7%9A%84%E5%AE%89%E8%A3%85/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/happydog.png">
+      <meta itemprop="name" content="Wei Qi">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="WeiQi Blog">
+      <meta itemprop="description" content="一路走来，有点艰难">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="实施部署-达梦数据库linux版的安装（二） | WeiQi Blog">
+      <meta itemprop="description" content="信创类产品的实施部署从 0 到 1 ，达梦数据库在LINUX服务器上的安装与初始化实例...">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          实施部署-达梦数据库linux版的安装（二）
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2024-06-06 23:22:03" itemprop="dateCreated datePublished" datetime="2024-06-06T23:22:03+08:00">2024-06-06</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">更新于</span>
+      <time title="修改时间：2024-06-07 00:09:41" itemprop="dateModified" datetime="2024-06-07T00:09:41+08:00">2024-06-07</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2/" itemprop="url" rel="index"><span itemprop="name">实施部署</span></a>
+        </span>
+          ，
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2/%E4%BF%A1%E5%88%9B/" itemprop="url" rel="index"><span itemprop="name">信创</span></a>
+        </span>
+    </span>
+
+  
+    <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye"></i>
+      </span>
+      <span class="post-meta-item-text">阅读次数：</span>
+      <span id="busuanzi_value_page_pv"></span>
+    </span>
+    <span class="post-meta-break"></span>
+    <span class="post-meta-item" title="本文字数">
+      <span class="post-meta-item-icon">
+        <i class="far fa-file-word"></i>
+      </span>
+      <span class="post-meta-item-text">本文字数：</span>
+      <span>1.3k</span>
+    </span>
+    <span class="post-meta-item" title="阅读时长">
+      <span class="post-meta-item-icon">
+        <i class="far fa-clock"></i>
+      </span>
+      <span class="post-meta-item-text">阅读时长 &asymp;</span>
+      <span>5 分钟</span>
+    </span>
+</div>
+
+            <div class="post-description">信创类产品的实施部署从 0 到 1 ，达梦数据库在LINUX服务器上的安装与初始化实例...</div>
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><h2 id="达梦数据库的安装"><a href="#达梦数据库的安装" class="headerlink" title="达梦数据库的安装"></a>达梦数据库的安装</h2><p>*仅适用于LINUX安装（windows安装太easy了）</p>
+<p>在搭建客户的开发环境、测试环境，数据库多为实施自行安装，并没有太大的要求，只需要注意一些参数，到时候与生产环境保持一致即可。生产环境，会与客户沟通达梦数据库的参数，比如：页大小、簇大小、字符集、大小写敏感等一些需要在注册实例时就配置的参数。</p>
+<p>在上一文章《实施部署-信创项目环境搭建准备（一）》已经沟通过参数了，这篇总结达梦数据库的安装和初始化实例的步骤。</p>
+<p>先贴个达梦官网技术文档地址：（步骤都可以在这里找到的）</p>
+<p><a target="_blank" rel="noopener" href="https://eco.dameng.com/document/dm/zh-cn/start/dm-install-linux.html">https://eco.dameng.com/document/dm/zh-cn/start/dm-install-linux.html</a></p>
+<h3 id="1-新建DMDBA用户"><a href="#1-新建DMDBA用户" class="headerlink" title="1 新建DMDBA用户"></a>1 新建DMDBA用户</h3><p>进入Linux服务器，用<code>root</code>用户创建：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"># 创建用户组</span><br><span class="line">groupadd dinstall</span><br><span class="line"># 创建用户</span><br><span class="line">useradd -g dinstall -m -d /home/dmdba -s /bin/bash dmdba</span><br><span class="line"># 修改用户密码</span><br><span class="line">passwd dmdba</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="2-修改文件打开最大数"><a href="#2-修改文件打开最大数" class="headerlink" title="2 修改文件打开最大数"></a>2 修改文件打开最大数</h3><figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">vi /etc/security/limits.conf</span><br><span class="line"><span class="comment"># 在conf文件内容的最后添加</span></span><br><span class="line">dmdba hard nofile <span class="number">65536</span></span><br><span class="line">dmdba soft nofile <span class="number">65536</span></span><br><span class="line">dmdba hard stack <span class="number">32768</span></span><br><span class="line">dmdba soft stack <span class="number">16384</span></span><br><span class="line"><span class="comment"># :wq 保存</span></span><br></pre></td></tr></table></figure>
+
+<p>修改后切换到<code>dmdba</code>用户查看是否生效</p>
+<figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">su - dmdba</span><br><span class="line">ulimit -a</span><br></pre></td></tr></table></figure>
+
+<img src="/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E8%BE%BE%E6%A2%A6%E6%95%B0%E6%8D%AE%E5%BA%93%E7%9A%84%E5%AE%89%E8%A3%85/%E5%9B%BE%E7%89%87.png" class="" title="img">
+
+
+
+<h3 id="3-创建数据库安装目录"><a href="#3-创建数据库安装目录" class="headerlink" title="3 创建数据库安装目录"></a>3 创建数据库安装目录</h3><figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 创建目录</span></span><br><span class="line">cd /home</span><br><span class="line"><span class="keyword">mkdir</span> dm</span><br><span class="line"><span class="comment"># 修改目录所属主、所属组</span></span><br><span class="line"><span class="keyword">chown</span> dmdba:dinstall -R dm</span><br><span class="line"><span class="comment"># 给目录授权</span></span><br><span class="line"><span class="keyword">chmod</span> -R <span class="number">755</span> dm</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="4-挂载达梦镜像"><a href="#4-挂载达梦镜像" class="headerlink" title="4 挂载达梦镜像"></a>4 挂载达梦镜像</h3><p>将<code>达梦数据库安装包.iso</code> 文件上传到数据库服务器上的任意位置，例如：</p>
+<figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 创建挂载目录</span></span><br><span class="line"><span class="keyword">mkdir</span> /mnt</span><br><span class="line"><span class="comment"># 给执行权限</span></span><br><span class="line"><span class="keyword">chmod</span> <span class="number">755</span> 达梦数据库安装包.iso</span><br><span class="line"><span class="comment"># 挂载</span></span><br><span class="line">mount -o loop /home/dmdba/dm8_20230713_FTarm_kylin10_sp1_64_include_symbols.iso /mnt</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="5-安装数据库"><a href="#5-安装数据库" class="headerlink" title="5 安装数据库"></a>5 安装数据库</h3><figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 切换创建好的达梦数据库用户</span></span><br><span class="line">su - dmdba</span><br><span class="line"><span class="comment"># 进入挂载目录</span></span><br><span class="line">cd /mnt</span><br><span class="line"><span class="comment"># 安装</span></span><br><span class="line">./DMInstall.bin -i</span><br></pre></td></tr></table></figure>
+
+<p>步骤如图：（其中安装目录选择创建的达梦数据库安装目录）</p>
+<img src="/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E8%BE%BE%E6%A2%A6%E6%95%B0%E6%8D%AE%E5%BA%93%E7%9A%84%E5%AE%89%E8%A3%85/%E5%9B%BE%E7%89%87-1717688671054.png" class="" title="img">
+
+<img src="/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E8%BE%BE%E6%A2%A6%E6%95%B0%E6%8D%AE%E5%BA%93%E7%9A%84%E5%AE%89%E8%A3%85/%E5%9B%BE%E7%89%87-1717688677231.png" class="" title="img">
+
+
+
+<p>显示安装结束后，切换到root用户</p>
+<figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">su - root</span><br><span class="line"><span class="comment"># 执行</span></span><br><span class="line">/home/dm/script/root/root_install.sh</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="6-注册实例"><a href="#6-注册实例" class="headerlink" title="6 注册实例"></a>6 注册实例</h3><p>说明：</p>
+<p>达梦数据库页大小、簇大小、大小写敏感、字符集都为注册实例时需要配置的，这些参数一经注册后不能修改，除非重新注册实例或者重装数据库。参数在《实施部署-信创项目环境搭建准备（一）》已经做了总结。</p>
+<h4 id="6-1-使用默认参数注册"><a href="#6-1-使用默认参数注册" class="headerlink" title="6.1 使用默认参数注册"></a>6.1 使用默认参数注册</h4><figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 切换到dmdba用户</span></span><br><span class="line">su - dmdba</span><br><span class="line"><span class="comment"># 进入dm/bin目录</span></span><br><span class="line">cd /home/dm/bin</span><br><span class="line"><span class="comment"># 执行初始化命令</span></span><br><span class="line">./dminit path=<span class="regexp">/home/dm</span>/data</span><br><span class="line"><span class="comment"># 类似下图</span></span><br></pre></td></tr></table></figure>
+
+<img src="/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E8%BE%BE%E6%A2%A6%E6%95%B0%E6%8D%AE%E5%BA%93%E7%9A%84%E5%AE%89%E8%A3%85/%E5%9B%BE%E7%89%87-1717688969600.png" class="" title="img">
+
+
+
+<figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 切换root用户</span></span><br><span class="line">su - root</span><br><span class="line"><span class="comment"># 进入相关目录</span></span><br><span class="line">cd /home/dm/script/root</span><br><span class="line"><span class="comment"># 执行注册服务命令</span></span><br><span class="line">./dm_service_installer.sh -t dmserver -dm_ini /dm/data/DAMENG/dm.ini -p DMSERVER</span><br><span class="line"><span class="comment"># 类似下图</span></span><br></pre></td></tr></table></figure>
+
+<img src="/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E8%BE%BE%E6%A2%A6%E6%95%B0%E6%8D%AE%E5%BA%93%E7%9A%84%E5%AE%89%E8%A3%85/%E5%9B%BE%E7%89%87-1717689078764.png" class="" title="img">
+
+<p>这个操作将生成 <code>dm.ini</code> 配置文件，实例注册到哪个目录，配置文件就在哪个目录</p>
+<h4 id="6-2-使用自定义参数注册"><a href="#6-2-使用自定义参数注册" class="headerlink" title="6.2 使用自定义参数注册"></a>6.2 使用自定义参数注册</h4><p>步骤与 6.1 相同，不同的步骤只有一个，在执行初始化命令时，需要在后边接上需要设置的页大小、簇大小、字符集、大小写敏感等等相关参数</p>
+<figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 参考</span></span><br><span class="line">./dminit path=<span class="regexp">/home/dm</span>/data PAGE_SIZE=<span class="number">32</span> EXTENT_SIZE=<span class="number">32</span> CASE_SENSITIVE=<span class="keyword">y</span> CHARSET=<span class="number">0</span> DB_NAME=DMDB INSTANCE_NAME=DmDBSERVER PORT_NUM=<span class="number">5236</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 页大小 PAGE_SIZE</span></span><br><span class="line"><span class="comment"># 簇大小 EXTENT_SIZE</span></span><br><span class="line"><span class="comment"># 大小写敏感 CASE_SENSITIVE</span></span><br><span class="line"><span class="comment"># 字符集 CHARSET</span></span><br><span class="line"><span class="comment"># 数据库名 DB_NAME</span></span><br><span class="line"><span class="comment"># 实例名 INSTANCE_NAME</span></span><br><span class="line"><span class="comment"># 端口 PORT_NUM</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="7-可选参数配置"><a href="#7-可选参数配置" class="headerlink" title="7 可选参数配置"></a>7 可选参数配置</h3><p>具体见《实施部署-信创项目环境搭建准备（一）》的1.4.2步骤</p>
+<h3 id="8-替换dm-key"><a href="#8-替换dm-key" class="headerlink" title="8 替换dm.key"></a>8 替换dm.key</h3><p>替换为正式的dm.key，可直接上传正式的key到dm&#x2F;bin目录直接替换</p>
+<p>或者上传任意目录，使用cp命令替换</p>
+<h3 id="9-启动数据库"><a href="#9-启动数据库" class="headerlink" title="9 启动数据库"></a>9 启动数据库</h3><p>开发、测试环境启动</p>
+<figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 启动数据库服务</span></span><br><span class="line">systemctl start DmServiceDMSERVER.service</span><br></pre></td></tr></table></figure>
+
+
+
+<p>生产上，一般会安装达梦的监控守护模式</p>
+<figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">cd /home/dm/bin</span><br><span class="line">DmServiceDM start</span><br><span class="line">DmWatcherServiceDM start</span><br></pre></td></tr></table></figure>
+
+
+
+<figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 开发、测试环境</span></span><br><span class="line"><span class="comment"># 停止</span></span><br><span class="line">systemctl stop DmServiceDMSERVER.service</span><br><span class="line"><span class="comment"># 重启</span></span><br><span class="line">systemctl restart DmServiceDMSERVER.service</span><br><span class="line"></span><br><span class="line"><span class="comment"># 生产环境</span></span><br><span class="line">DmWatcherServiceDM stop         <span class="comment"># 先停监控</span></span><br><span class="line">DmServiceDM restart</span><br><span class="line">DmWatcherServiceDM start</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="达梦集群守护"><a href="#达梦集群守护" class="headerlink" title="达梦集群守护"></a>达梦集群守护</h2><p>达梦集群守护是生产上才使用的，一般由DBA操作。</p>
+<p>生产环境采用双活形式部署，应用服务器上使用达梦数据库连接服务名进行连接。达梦在安装完成时会在数据库服务器上生产&#x2F;etc&#x2F;dm_svc.conf 文件，可以在该文件中进行添加配置，同时需要在应用服务器上【&#x2F;etc&#x2F;dm_svc.conf】文件（此文件为新增）中配置：</p>
+<figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">TIME_ZONE=(<span class="number">480</span>)</span><br><span class="line">LANGUAGE=(cn)</span><br><span class="line">GRP1=(<span class="number">192.168</span>.xxx.<span class="number">1</span>:<span class="number">5236</span>,<span class="number">192.168</span>.xxx.<span class="number">2</span>:<span class="number">5236</span>)</span><br><span class="line">[GRP1]</span><br><span class="line">TIME+ZONE=(+<span class="number">480</span>)</span><br><span class="line">LOGIN_MODE=(<span class="number">1</span>)</span><br><span class="line">SWITCH_TIME=(<span class="number">3</span>)</span><br><span class="line">SWITCH_INTERVAL=(<span class="number">200</span>)</span><br></pre></td></tr></table></figure>
+
+
+
+<p>配置说明如下：</p>
+<table>
+<thead>
+<tr>
+<th>LOGIN_MODE</th>
+<th>服务名方式登录，始终会优先登录主库；</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>LOGIN_MODE</td>
+<td>表示是否仅登录主库或者备库，可以配置为 0、1 或 2。2表示不登录 Standby 模式的库，如果系统中只有 Standby 模式的库，登录失败并报错。</td>
+</tr>
+<tr>
+<td>SWITCH_TIME</td>
+<td>检测到数据库实例故障时，接口在服务器之间切换的次数；超过设置次数没有连接到有效数据库时，断开连接并报错。</td>
+</tr>
+<tr>
+<td>SWITCH_INTERVAL</td>
+<td>表示在服务器之间切换的时间间隔，单位为毫秒。</td>
+</tr>
+</tbody></table>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E5%AE%9E%E6%96%BD/" rel="tag"># 实施</a>
+              <a href="/tags/%E8%BE%BE%E6%A2%A6/" rel="tag"># 达梦</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%BF%A1%E5%88%9B%E9%A1%B9%E7%9B%AE%E5%AE%9E%E6%96%BD%E5%87%86%E5%A4%87/" rel="prev" title="实施部署-信创项目环境搭建准备（一）">
+                  <i class="fa fa-angle-left"></i> 实施部署-信创项目环境搭建准备（一）
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2024</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Wei Qi</span>
+  </div>
+<div class="wordcount">
+  <span class="post-meta-item">
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-line"></i>
+    </span>
+    <span title="站点总字数">7k</span>
+  </span>
+  <span class="post-meta-item">
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">26 分钟</span>
+  </span>
+</div>
+<div class="busuanzi-count">
+    <span class="post-meta-item" id="busuanzi_container_site_uv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/sidebar.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+
+  
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+
+</body>
+</html>
