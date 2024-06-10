@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/touxiang.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/touxiang.ico">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/touxiang.ico">
+  <link rel="mask-icon" href="/images/touxiang.ico" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha256-XOqroi11tY4EFQMR9ZYwZWKj5ZXiftSx36RRuC3anlA=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"weiqifun.github.io","root":"/","images":"/images","scheme":"Pisces","darkmode":false,"version":"8.20.0","exturl":true,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"copycode":{"enable":true,"style":"default","show_result":true},"fold":{"enable":false,"height":500},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="本文总结在信创项目中，使用最多的中间件：东方通、宝兰德。 在安装中间件之前，应先在服务器创建一个应用用户，这里并不是说不能用root用户安装，开发环境和测试环境可以直接安装，但是生产上是无特殊情况是不提供root用户的。为了避免因为用户差异导致的文件执行问题，这里先创建一个用户，上线时，可以保证我们的操作一致，以及后续方便排查部署过程中可能产生的报错。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="实施部署-东方通中间件、宝兰德部署应用（三）">
+<meta property="og:url" content="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/">
+<meta property="og:site_name" content="WeiQi Blog">
+<meta property="og:description" content="本文总结在信创项目中，使用最多的中间件：东方通、宝兰德。 在安装中间件之前，应先在服务器创建一个应用用户，这里并不是说不能用root用户安装，开发环境和测试环境可以直接安装，但是生产上是无特殊情况是不提供root用户的。为了避免因为用户差异导致的文件执行问题，这里先创建一个用户，上线时，可以保证我们的操作一致，以及后续方便排查部署过程中可能产生的报错。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610204654771.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610204935579.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610205138494.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610205434632.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610180330666.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610180404626.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610180524062.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610180543262.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610180615157.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610180647406.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610182051772.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610182141313.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610183424898.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610183438301.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610213153662.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610210006502.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610210257908.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610210617629.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610210646602.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610210752739.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610210903059.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610211656153.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610211725523.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610211737010.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610211821072.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610212153631.png">
+<meta property="article:published_time" content="2024-06-10T09:51:06.000Z">
+<meta property="article:modified_time" content="2024-06-10T13:32:59.675Z">
+<meta property="article:author" content="Wei Qi">
+<meta property="article:tag" content="实施">
+<meta property="article:tag" content="中间件">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610204654771.png">
+
+
+<link rel="canonical" href="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/","path":"2024/06/10/实施部署-东方通中间件部署应用/","title":"实施部署-东方通中间件、宝兰德部署应用（三）"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>实施部署-东方通中间件、宝兰德部署应用（三） | WeiQi Blog</title>
+  
+
+
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">WeiQi Blog</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">前进 & 思考</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%89%E8%A3%85%E5%89%8D%E5%87%86%E5%A4%87"><span class="nav-number">1.</span> <span class="nav-text">安装前准备</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-%E5%88%9B%E5%BB%BA%E4%B8%AD%E9%97%B4%E4%BB%B6%E7%94%A8%E6%88%B7"><span class="nav-number">1.1.</span> <span class="nav-text">1 创建中间件用户</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-hosts%E9%85%8D%E7%BD%AE"><span class="nav-number">1.2.</span> <span class="nav-text">2 hosts配置</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-%E4%BF%AE%E6%94%B9%E6%96%87%E4%BB%B6%E6%89%93%E5%BC%80%E6%9C%80%E5%A4%A7%E6%95%B0"><span class="nav-number">1.3.</span> <span class="nav-text">3 修改文件打开最大数</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-%E9%85%8D%E7%BD%AEJDK"><span class="nav-number">1.4.</span> <span class="nav-text">4 配置JDK</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%9C%E6%96%B9%E9%80%9A%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8"><span class="nav-number">2.</span> <span class="nav-text">东方通部署应用</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-%E4%B8%9C%E6%96%B9%E9%80%9A%E7%9A%84%E5%AE%89%E8%A3%85"><span class="nav-number">2.1.</span> <span class="nav-text">1 东方通的安装</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-1-bin%E5%8C%85%E5%AE%89%E8%A3%85"><span class="nav-number">2.1.1.</span> <span class="nav-text">1.1 bin包安装</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#1-2-tar%E5%8C%85%E5%AE%89%E8%A3%85"><span class="nav-number">2.1.2.</span> <span class="nav-text">1.2 tar包安装</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#1-3-%E6%8E%88%E6%9D%83"><span class="nav-number">2.1.3.</span> <span class="nav-text">1.3 授权</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-%E5%90%AF%E5%8A%A8%E9%85%8D%E7%BD%AE"><span class="nav-number">2.2.</span> <span class="nav-text">2 启动配置</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#2-1-%E4%BF%AE%E6%94%B9%E7%AB%AF%E5%8F%A3"><span class="nav-number">2.2.1.</span> <span class="nav-text">2.1 修改端口</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-2-%E5%85%B3%E9%97%AD%E9%98%B2%E7%81%AB%E5%A2%99"><span class="nav-number">2.2.2.</span> <span class="nav-text">2.2 关闭防火墙</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-3-%E5%90%AF%E5%81%9C%E6%9C%8D%E5%8A%A1"><span class="nav-number">2.2.3.</span> <span class="nav-text">2.3 启停服务</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-4-%E6%89%93%E5%BC%80%E6%8E%A7%E5%88%B6%E5%8F%B0"><span class="nav-number">2.2.4.</span> <span class="nav-text">2.4 打开控制台</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-%E6%8E%A7%E5%88%B6%E5%8F%B0%E9%85%8D%E7%BD%AE"><span class="nav-number">2.3.</span> <span class="nav-text">3 控制台配置</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#3-1-%E4%BF%AE%E6%94%B9%E6%9C%8D%E5%8A%A1%E5%99%A8%E5%8F%AF%E9%80%89%E7%9B%AE%E5%BD%95"><span class="nav-number">2.3.1.</span> <span class="nav-text">3.1 修改服务器可选目录</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-2-JDBC-%E9%85%8D%E7%BD%AE"><span class="nav-number">2.3.2.</span> <span class="nav-text">3.2 JDBC 配置</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-3-%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8"><span class="nav-number">2.3.3.</span> <span class="nav-text">3.3 部署应用</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-4-%E8%AE%BF%E9%97%AE%E5%BA%94%E7%94%A8"><span class="nav-number">2.3.4.</span> <span class="nav-text">3.4 访问应用</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-%E5%A4%9A%E7%A7%8D%E9%83%A8%E7%BD%B2%E6%83%85%E5%86%B5%E8%AF%B4%E6%98%8E"><span class="nav-number">2.4.</span> <span class="nav-text">4 多种部署情况说明</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#4-1-%E4%B8%80%E4%B8%AA%E4%B8%9C%E6%96%B9%E9%80%9A%E9%83%A8%E7%BD%B2%E5%A4%9A%E4%B8%AA%E5%BA%94%E7%94%A8"><span class="nav-number">2.4.1.</span> <span class="nav-text">4.1 一个东方通部署多个应用</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E7%9B%B4%E6%8E%A5%E9%83%A8%E7%BD%B2"><span class="nav-number">2.4.1.1.</span> <span class="nav-text">直接部署</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%9F%9F%E9%83%A8%E7%BD%B2"><span class="nav-number">2.4.1.2.</span> <span class="nav-text">域部署</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-%E8%AE%BE%E7%BD%AEconnection-timeout"><span class="nav-number">2.5.</span> <span class="nav-text">5 设置connection-timeout</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%9D%E5%85%B0%E5%BE%B7%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8"><span class="nav-number">3.</span> <span class="nav-text">宝兰德部署应用</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-%E5%AE%9D%E5%85%B0%E5%BE%B7%E7%9A%84%E5%AE%89%E8%A3%85"><span class="nav-number">3.1.</span> <span class="nav-text">1 宝兰德的安装</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-%E5%88%9D%E5%A7%8B%E5%8C%96%E5%B9%B6%E5%90%AF%E5%8A%A8"><span class="nav-number">3.2.</span> <span class="nav-text">2 初始化并启动</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-%E9%85%8D%E7%BD%AE%E4%B8%AD%E9%97%B4%E4%BB%B6"><span class="nav-number">3.3.</span> <span class="nav-text">3 配置中间件</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#3-1-%E6%B7%BB%E5%8A%A0%E4%B8%BB%E6%9C%BA"><span class="nav-number">3.3.1.</span> <span class="nav-text">3.1 添加主机</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-2-%E6%B7%BB%E5%8A%A0%E8%8A%82%E7%82%B9"><span class="nav-number">3.3.2.</span> <span class="nav-text">3.2 添加节点</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-3-%E5%88%9B%E5%BB%BA%E9%9B%86%E7%BE%A4"><span class="nav-number">3.3.3.</span> <span class="nav-text">3.3 创建集群</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-4-%E5%88%9B%E5%BB%BA%E5%AE%9E%E4%BE%8B"><span class="nav-number">3.3.4.</span> <span class="nav-text">3.4 创建实例</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-5-%E4%BF%AE%E6%94%B9%E5%AE%9E%E4%BE%8B%E7%AB%AF%E5%8F%A3"><span class="nav-number">3.3.5.</span> <span class="nav-text">3.5 修改实例端口</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8%E6%B3%A8%E6%84%8F%E9%A1%B9"><span class="nav-number">3.4.</span> <span class="nav-text">4 部署应用注意项</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#4-1-%E9%87%8D%E5%90%AF%E5%AE%9E%E4%BE%8B%E5%87%BA%E7%8E%B0%E6%9F%90%E4%B8%AA%E5%AE%9E%E4%BE%8B%E5%90%AF%E5%8A%A8%E5%A4%B1%E8%B4%A5"><span class="nav-number">3.4.1.</span> <span class="nav-text">4.1 重启实例出现某个实例启动失败</span></a></li></ol></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Wei Qi"
+      src="/images/happydog.png">
+  <p class="site-author-name" itemprop="name">Wei Qi</p>
+  <div class="site-description" itemprop="description">一路走来，有点艰难</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">7</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL3dlaXFpZnVuL3dlaXFpZnVuLmdpdGh1Yi5pbw==" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;weiqifun&#x2F;weiqifun.github.io"><i class="fab fa-github fa-fw"></i>GitHub</span>
+      </span>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://weiqifun.github.io/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/happydog.png">
+      <meta itemprop="name" content="Wei Qi">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="WeiQi Blog">
+      <meta itemprop="description" content="一路走来，有点艰难">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="实施部署-东方通中间件、宝兰德部署应用（三） | WeiQi Blog">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          实施部署-东方通中间件、宝兰德部署应用（三）
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+      
+
+      <time title="创建时间：2024-06-10 17:51:06 / 修改时间：21:32:59" itemprop="dateCreated datePublished" datetime="2024-06-10T17:51:06+08:00">2024-06-10</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2/" itemprop="url" rel="index"><span itemprop="name">实施部署</span></a>
+        </span>
+          ，
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2/%E4%BF%A1%E5%88%9B/" itemprop="url" rel="index"><span itemprop="name">信创</span></a>
+        </span>
+    </span>
+
+  
+    <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye"></i>
+      </span>
+      <span class="post-meta-item-text">阅读次数：</span>
+      <span id="busuanzi_value_page_pv"></span>
+    </span>
+    <span class="post-meta-break"></span>
+    <span class="post-meta-item" title="本文字数">
+      <span class="post-meta-item-icon">
+        <i class="far fa-file-word"></i>
+      </span>
+      <span class="post-meta-item-text">本文字数：</span>
+      <span>3.2k</span>
+    </span>
+    <span class="post-meta-item" title="阅读时长">
+      <span class="post-meta-item-icon">
+        <i class="far fa-clock"></i>
+      </span>
+      <span class="post-meta-item-text">阅读时长 &asymp;</span>
+      <span>12 分钟</span>
+    </span>
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>本文总结在信创项目中，使用最多的中间件：东方通、宝兰德。</p>
+<p>在安装中间件之前，应先在服务器创建一个应用用户，这里并不是说不能用root用户安装，开发环境和测试环境可以直接安装，但是生产上是无特殊情况是不提供root用户的。为了避免因为用户差异导致的文件执行问题，这里先创建一个用户，上线时，可以保证我们的操作一致，以及后续方便排查部署过程中可能产生的报错。</p>
+<span id="more"></span>
+
+
+
+<h2 id="安装前准备"><a href="#安装前准备" class="headerlink" title="安装前准备"></a>安装前准备</h2><h3 id="1-创建中间件用户"><a href="#1-创建中间件用户" class="headerlink" title="1 创建中间件用户"></a>1 创建中间件用户</h3><p>在应用服务器上使用root用户</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">创建用户组</span></span><br><span class="line">groupadd -g 1051 test</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">创建用户</span></span><br><span class="line">useradd -g test -m -d /home/test -s /bin/bash test</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">修改密码</span></span><br><span class="line">passwd test</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="2-hosts配置"><a href="#2-hosts配置" class="headerlink" title="2 hosts配置"></a>2 hosts配置</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">查看本机名</span></span><br><span class="line">hostname</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">查看本机IP</span></span><br><span class="line">hostname -i</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">配置hosts</span></span><br><span class="line">vi /etc/hosts</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">添加</span></span><br><span class="line">ip hostname</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="3-修改文件打开最大数"><a href="#3-修改文件打开最大数" class="headerlink" title="3 修改文件打开最大数"></a>3 修改文件打开最大数</h3><p>说明：此步骤，安装东方通时可跳过的，宝兰德需要操作（以我接触的项目情况是这样的）</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">vi /etc/security/limits.conf</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">添加</span></span><br><span class="line">* soft nofile 65535</span><br><span class="line">* hard nofile 65535</span><br><span class="line">* soft nproc 65535</span><br><span class="line">* hard nproc 65535</span><br></pre></td></tr></table></figure>
+
+<p>保存后重新连接服务器</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">查看是否生效</span></span><br><span class="line">ulimit -a</span><br></pre></td></tr></table></figure>
+
+<img src="/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610204654771.png" class="" title="image-20240610204654771">
+
+
+
+<h3 id="4-配置JDK"><a href="#4-配置JDK" class="headerlink" title="4 配置JDK"></a>4 配置JDK</h3><p>没有则安装，一般信创的机器是自带的。但是有时候，为了确保这个版本的JDK是中间件以及应用服务都可用，采用自己安装，多为安装 JDK1.8 版本（自己安装需要上传jdk到服务器并解压tar包）</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">查看是否安装</span></span><br><span class="line">java -version</span><br></pre></td></tr></table></figure>
+
+<img src="/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610204935579.png" class="" title="image-20240610204935579">
+
+
+
+<p>已经有了，则可以直接配置环境变量，当然，得知道路径才能配置环境变量</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">查看 JDK 的安装路径</span></span><br><span class="line">which java</span><br><span class="line">ls -l /usr/bin/java</span><br><span class="line">ls -l /etc/alternatives/java</span><br></pre></td></tr></table></figure>
+
+<img src="/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610205138494.png" class="" title="image-20240610205138494">
+
+<p>最下边返回的，就是 JDK 真是的安装路径</p>
+<p>找到JDK安装路径后，添加环境变量：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">vi ~/.bashrc</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在末尾加入</span></span><br><span class="line">export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.272.b10-7.ky10.x86_64/jre</span><br><span class="line">export PATH=$JAVA_HOME/bin:$PATH</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">保存后刷新环境变量</span></span><br><span class="line">source ~/.bashrc</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">输出配置的环境变量</span></span><br><span class="line">echo $JAVA_HOME</span><br></pre></td></tr></table></figure>
+
+<img src="/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610205434632.png" class="" title="image-20240610205434632">
+
+
+
+<p>配置好环境变量后，就可以进行中间件的安装了</p>
+<h2 id="东方通部署应用"><a href="#东方通部署应用" class="headerlink" title="东方通部署应用"></a>东方通部署应用</h2><p>东方通中间件部署应用的详细步骤，从东方通安装到管理控制台配置的过程。</p>
+<h3 id="1-东方通的安装"><a href="#1-东方通的安装" class="headerlink" title="1 东方通的安装"></a>1 东方通的安装</h3><p>东方通在LINUX上安装，需要通过命令的方式安装。（PS：这个已经是22年的版本了，当时接触东方通的时候，安装包是一个.bin文件，但是到了23年，东方通的安装包基本都是提供一个tar包，安装只需要解压tar包即可。方便很多，但是既然是自己安装的中间件，当然要记录啦）</p>
+<h4 id="1-1-bin包安装"><a href="#1-1-bin包安装" class="headerlink" title="1.1 bin包安装"></a>1.1 bin包安装</h4><figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 运行安装包</span></span><br><span class="line">sh Install_TW7.*.*.*_Enterprise_Linux.bin -i console</span><br><span class="line"><span class="comment"># 选择语言</span></span><br><span class="line">中文简体</span><br></pre></td></tr></table></figure>
+
+<img src="/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610180330666.png" class="" title="image-20240610180330666">
+
+<figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 中间会出现 【按回车键继续安装】【PRESS &lt;ENTER&gt; TO CONTINUE】</span></span><br><span class="line">按回车就行</span><br><span class="line"><span class="comment"># 然后回出现 【是否接受此许可协议条款】</span></span><br><span class="line"><span class="keyword">y</span></span><br><span class="line"><span class="comment"># 选择 JDK</span></span><br><span class="line">选择系统自带的 JDK 即可，当然也可以使用自己安装的，图上是使用自己安装的（最好是适配应用的 JDK 版本）</span><br></pre></td></tr></table></figure>
+
+<img src="/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610180404626.png" class="" title="image-20240610180404626">
+
+<figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 选择安装位置</span></span><br><span class="line">输入一个安装路径</span><br></pre></td></tr></table></figure>
+
+<img src="/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610180524062.png" class="" title="image-20240610180524062">
+
+<figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 选择链接位置</span></span><br><span class="line">这里常链接到主文件夹中</span><br></pre></td></tr></table></figure>
+
+<img src="/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610180543262.png" class="" title="image-20240610180543262">
+
+<figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 出现预安装信息</span></span><br><span class="line">回车即可</span><br></pre></td></tr></table></figure>
+
+<img src="/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610180615157.png" class="" title="image-20240610180615157">
+
+<figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 修改端口</span></span><br><span class="line">此步骤，可修改可不改。无特殊要求可直接使用默认（回车）。有特殊要求，则更改端口，这里也可以安装好后在配置文件中修改（$TONGWEB_HOME/conf/tongweb.xml)</span><br><span class="line">通常我们关注以下两个</span><br><span class="line">tong-http-listener，此为访问应用端口</span><br><span class="line"><span class="keyword">system</span>-http-listener，此为东方通控制台端口</span><br></pre></td></tr></table></figure>
+
+<img src="/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610180647406.png" class="" title="image-20240610180647406">
+
+<p>回车后就安装完成了。</p>
+<h4 id="1-2-tar包安装"><a href="#1-2-tar包安装" class="headerlink" title="1.2 tar包安装"></a>1.2 tar包安装</h4><p>提供的tar包，只需要解压到目标目录即可。当然，tar有多种压缩格式，最常碰见的就是 <code>tar.gz</code> </p>
+<figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">tar -xzvf tongweb_version_7.x.x.x /home/tongweb</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="1-3-授权"><a href="#1-3-授权" class="headerlink" title="1.3 授权"></a>1.3 授权</h4><p>将安装后的目录，授权给中间件用户</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">chown test:test -R /home/tongweb</span><br><span class="line">chmod 755 -R /home/tongweb</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="2-启动配置"><a href="#2-启动配置" class="headerlink" title="2 启动配置"></a>2 启动配置</h3><p>以下常见配置，均为在项目上能够实际遇到的</p>
+<h4 id="2-1-修改端口"><a href="#2-1-修改端口" class="headerlink" title="2.1 修改端口"></a>2.1 修改端口</h4><p>根据客户要求，或者应用要求，配置我们的应用端口。（如果是使用默认端口则不需要修改）</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">假设安装到 /home/tongweb</span></span><br><span class="line">vi /home/tongweb/conf/tongweb.xml</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">修改 tong-http-listener 的 port</span></span><br><span class="line">port = 8080</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="2-2-关闭防火墙"><a href="#2-2-关闭防火墙" class="headerlink" title="2.2 关闭防火墙"></a>2.2 关闭防火墙</h4><p>在启动东方通控制台之前，需要关闭防火墙，否则操作机器无法访问到控制台地址。（在第一次接触东方通的时候，当时服务已经启动了，但是打不开控制台，我还以为是网络没打通，结果一查是防火墙导致）</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">关闭防火墙</span></span><br><span class="line">systemctl stop firewalld</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">禁止防火墙自启，通常情况下，不需要禁止，但是如果遇到服务器重启的情况，首先还是需要手动关闭</span></span><br><span class="line">systemctl disable firewalld</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="2-3-启停服务"><a href="#2-3-启停服务" class="headerlink" title="2.3 启停服务"></a>2.3 启停服务</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">正常启动</span></span><br><span class="line">cd /home/tongweb/bin &amp;&amp; ./startserver.sh</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">后台启动（常用）</span></span><br><span class="line">cd /home/tongweb/bin &amp;&amp; ./startservernohup.sh </span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">停止</span></span><br><span class="line">cd /home/tongweb/bin &amp;&amp; ./stopserver.sh</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">或者手动 <span class="built_in">kill</span></span></span><br><span class="line">kill -9 &#123;pid&#125;</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">重启</span></span><br><span class="line">cd /home/tongweb/bin &amp;&amp; ./startservernohup.sh restart</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="2-4-打开控制台"><a href="#2-4-打开控制台" class="headerlink" title="2.4 打开控制台"></a>2.4 打开控制台</h4><figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">http:<span class="regexp">//ip</span>:port/console</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="3-控制台配置"><a href="#3-控制台配置" class="headerlink" title="3 控制台配置"></a>3 控制台配置</h3><h4 id="3-1-修改服务器可选目录"><a href="#3-1-修改服务器可选目录" class="headerlink" title="3.1 修改服务器可选目录"></a>3.1 修改服务器可选目录</h4><p>此步骤是确保在部署应用的时候，可以访问到应用所在的位置，不然找不到</p>
+<img src="/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610182051772.png" class="" title="image-20240610182051772">
+
+
+
+<h4 id="3-2-JDBC-配置"><a href="#3-2-JDBC-配置" class="headerlink" title="3.2 JDBC 配置"></a>3.2 JDBC 配置</h4><p>JDBC配置就是让中间件连接到数据库，让应用能够与数据库进行交互。</p>
+<p>需要注意的地方：</p>
+<ul>
+<li>达梦JDBC驱动，最好使用新版，或者应用做了适配的版本。</li>
+<li>JDBC连接名称，需要与应用中的<code>jndiName</code> 一致，一般的java服务会有一个<code>xml</code>文件配置<code>dispatcher-servlet</code> 的地方，否则可能会报错在应用中找不到 <code>jndiName</code> 。特别是在做信创迁移的时候，会出现一种情况：tomcat里使用的jndiName与东方通里使用的jndiName名称不一致，此时需要注意修改为一致。</li>
+</ul>
+<img src="/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610182141313.png" class="" title="image-20240610182141313">
+
+
+
+<p>另外，基于项目经验猜测，基于 webbuilder 的框架，都有 WEB-INF&#x2F;dispatcher-servlet.xml 文件，同样的，也会有变量配置，变量配置可能是落到数据库中，也可能使用 <code>var.json</code> 文件进行配置。差异不大，都是会有 jndiName 的配置</p>
+<h4 id="3-3-部署应用"><a href="#3-3-部署应用" class="headerlink" title="3.3 部署应用"></a>3.3 部署应用</h4><p>如果没有【3.1修改服务器可选目录】，这里是访问不到应用所在的目录的</p>
+<img src="/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610183424898.png" class="" title="image-20240610183424898">
+
+<img src="/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610183438301.png" class="" title="image-20240610183438301">
+
+
+
+<p>点击开始部署，一般这里没什么多大的问题，都取默认即可。</p>
+<h4 id="3-4-访问应用"><a href="#3-4-访问应用" class="headerlink" title="3.4 访问应用"></a>3.4 访问应用</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">http://ip:port/app_name</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="4-多种部署情况说明"><a href="#4-多种部署情况说明" class="headerlink" title="4 多种部署情况说明"></a>4 多种部署情况说明</h3><h4 id="4-1-一个东方通部署多个应用"><a href="#4-1-一个东方通部署多个应用" class="headerlink" title="4.1 一个东方通部署多个应用"></a>4.1 一个东方通部署多个应用</h4><p>遇到过客户为了节省开发环境或者测试环境的资源，会让我们在一个东方通部署多个应用（就是与其他应用共享资源）。对于不同的应用，是可以的。</p>
+<p>针对是部署相同的应用，需要</p>
+<ul>
+<li>建立新的连接池，修改<code>jndiName</code> ，以防应用访问错数据库</li>
+</ul>
+<h5 id="直接部署"><a href="#直接部署" class="headerlink" title="直接部署"></a>直接部署</h5><p>直接部署则按照【3.1-3.3】步骤，部署应用即可</p>
+<p>注意：直接部署，东方通是按顺序拉起应用的，启动会慢一些，并且公用 IP 和 PORT ，东方通服务停掉会影响所有应用。</p>
+<h5 id="域部署"><a href="#域部署" class="headerlink" title="域部署"></a>域部署</h5><p>通过创建域，让各个应用启动和配置不相互影响。使用 <code>TONGWEB_HOME/bin</code> 下的启停命令不会影响到域里边的应用，域里的应用独立启停和配置，且端口不会冲突</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">创建域</span></span><br><span class="line">cd TONGWEB_HOME/bin</span><br><span class="line">./domain.sh create AppName</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">执行后，在东方通的根目录下会出现 domains 目录，目录里边的结构与根目录完全一致，有 /bin /conf /logs 等等</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">域的启停，与东方通完全一致，不过是在 /domains/bin 下</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">配置文件也在 /domains/conf 下</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">配置域的端口</span></span><br><span class="line">cd TONGWEB_HOME/domains/conf</span><br><span class="line">vi tongweb.xml        # 域的默认端口是东方通默认的端口+1</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">启停</span></span><br><span class="line">cd TONGWEB_HOME/domains/bin</span><br><span class="line">./startservernohup.sh          # 启动</span><br><span class="line">./stopserver.sh                # 停止</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">默认的域管理控制台：</span></span><br><span class="line">http://IP:PORT+1/console       # 比如东方通默认端口 9060，域端口则为 9061</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">应用访问：</span></span><br><span class="line">http://IP:PORT+1/app_name      # 比如应用默认端口 8088，域端口则为 8089</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="5-设置connection-timeout"><a href="#5-设置connection-timeout" class="headerlink" title="5 设置connection-timeout"></a>5 设置connection-timeout</h3><p>有些客户，在扫描整体的安全漏洞时，会检测到目标主机可能存在缓慢的 HTTP 拒绝服务攻击，这个就是中间件里配置connection-timeout即可。</p>
+<p>简单来说，通过发送大量的慢速或低频率的 HTTP 请求来占用目标服务器的资源，导致服务器的连接和内存资源被恶意连接占满，无法处理新的合法请求。</p>
+<p>tomcat 可以通过修改 <code>server.xml</code> 文件中的配置来设置 <code>connectionTimeout</code> 参数</p>
+<figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">Connector</span> <span class="attr">port</span>=<span class="string">&quot;8080&quot;</span> <span class="attr">protocol</span>=<span class="string">&quot;HTTP/1.1&quot;</span></span></span><br><span class="line"><span class="tag">           <span class="attr">maxHttpHeaderSize</span>=<span class="string">&quot;8192&quot;</span></span></span><br><span class="line"><span class="tag">           <span class="attr">maxThreads</span>=<span class="string">&quot;100&quot;</span></span></span><br><span class="line"><span class="tag">           <span class="attr">minSpareThreads</span>=<span class="string">&quot;50&quot;</span></span></span><br><span class="line"><span class="tag">           <span class="attr">maxSpareThreads</span>=<span class="string">&quot;100&quot;</span></span></span><br><span class="line"><span class="tag">           <span class="attr">minProcessors</span>=<span class="string">&quot;50&quot;</span></span></span><br><span class="line"><span class="tag">           <span class="attr">maxProcessors</span>=<span class="string">&quot;100&quot;</span></span></span><br><span class="line"><span class="tag">           <span class="attr">enableLookups</span>=<span class="string">&quot;false&quot;</span></span></span><br><span class="line"><span class="tag">           <span class="attr">connectionTimeout</span>=<span class="string">&quot;8000&quot;</span>      // <span class="attr">修改此处值</span></span></span><br><span class="line"><span class="tag">           <span class="attr">acceptCount</span>=<span class="string">&quot;100&quot;</span></span></span><br><span class="line"><span class="tag">           <span class="attr">redirectPort</span>=<span class="string">&quot;8443&quot;</span></span></span><br><span class="line"><span class="tag">           <span class="attr">URIEncoding</span>=<span class="string">&quot;UTF-8&quot;</span>/&gt;</span></span><br></pre></td></tr></table></figure>
+
+
+
+<p>同样的，在信创上，东方通中间件也可通过设置对应的请求，在 tongweb&#x2F;conf&#x2F;tongweb.xml 配置文件中，connection-timeout 对接的前台页面就是 http 通道里的 <code>连接超时</code> ，修改此处即可（默认 60000 &gt;&gt; 改为 8000）</p>
+<img src="/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610213153662.png" class="" title="image-20240610213153662">
+
+
+
+
+
+<h2 id="宝兰德部署应用"><a href="#宝兰德部署应用" class="headerlink" title="宝兰德部署应用"></a>宝兰德部署应用</h2><p>该步骤为宝兰德集群版本的安装步骤，非单实例。集群版本，需要配置节点、实例。实例的启动依赖于节点的启动，节点停止则实例停止。</p>
+<p>正确的启动顺序：集群 &gt;&gt; 节点 &gt;&gt; 实例</p>
+<h3 id="1-宝兰德的安装"><a href="#1-宝兰德的安装" class="headerlink" title="1 宝兰德的安装"></a>1 宝兰德的安装</h3><p>将安装介质放入服务器，并解压</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">使用中间件用户</span></span><br><span class="line">su - bes</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">进入介质目录</span></span><br><span class="line">cd /home/BES955</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">解压</span></span><br><span class="line">tar -zxvf BES-AppServer-Enterprise-9.5.5.6210-KYLIN10-X64.tar.gz -C /home/BES955/AdminServer</span><br></pre></td></tr></table></figure>
+
+
+
+<p>如果有补丁，则需要升级补丁。将补丁包放到 patch 目录下，执行</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">cd /home/BES955/AdminServer/bin</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">升级补丁</span></span><br><span class="line">./patch -path /home/jfcz/patch</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">查看是否升级完成</span></span><br><span class="line">./patch -list</span><br></pre></td></tr></table></figure>
+
+<img src="/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610210006502.png" class="" title="image-20240610210006502">
+
+
+
+<h3 id="2-初始化并启动"><a href="#2-初始化并启动" class="headerlink" title="2 初始化并启动"></a>2 初始化并启动</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在bin目录下执行，初始化中间件</span></span><br><span class="line">./initstore</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">启动管理控制台</span></span><br><span class="line">./startManagement</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">查看是否启动，出现6900端口为已启动</span></span><br><span class="line">netstat -ntlp</span><br></pre></td></tr></table></figure>
+
+<img src="/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610210257908.png" class="" title="image-20240610210257908">
+
+
+
+<h3 id="3-配置中间件"><a href="#3-配置中间件" class="headerlink" title="3 配置中间件"></a>3 配置中间件</h3><p>访问管理控制台</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">http://IP:6900/console</span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="3-1-添加主机"><a href="#3-1-添加主机" class="headerlink" title="3.1 添加主机"></a>3.1 添加主机</h4><p>进入控制台后，点击左侧主机管理，点击添加：<br>填写名称、主机IP、用户名、密码，信息如图</p>
+<img src="/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610210617629.png" class="" title="image-20240610210617629">
+
+<img src="/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610210646602.png" class="" title="image-20240610210646602">
+
+<p>可以点击ping，测试是否能连接。不能ping通请检查IP、用户、密码是否正确。</p>
+<h4 id="3-2-添加节点"><a href="#3-2-添加节点" class="headerlink" title="3.2 添加节点"></a>3.2 添加节点</h4><p>点击左侧节点管理，新建</p>
+<img src="/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610210752739.png" class="" title="image-20240610210752739">
+
+
+
+<p>填写节点名称、节点目录（默认填宝兰德的安装目录），JAVA_HOME可默认不填</p>
+<img src="/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610210903059.png" class="" title="image-20240610210903059">
+
+<p>保存后，启动它。</p>
+<p>点击节点，进入节点的配置界面，将【启动所有实例、停止所有实例】打勾后保存（这个操作可以在启动节点的同时自动启动实例）</p>
+<h4 id="3-3-创建集群"><a href="#3-3-创建集群" class="headerlink" title="3.3 创建集群"></a>3.3 创建集群</h4><p>点击左侧集群管理，点击新建：填写个集群名称即可。保存后选中该集群然后点击启动。</p>
+<img src="/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610211656153.png" class="" title="image-20240610211656153">
+
+
+
+<h4 id="3-4-创建实例"><a href="#3-4-创建实例" class="headerlink" title="3.4 创建实例"></a>3.4 创建实例</h4><p>点击左侧实例管理，点击新建：填写如图信息保存即可</p>
+<img src="/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610211725523.png" class="" title="image-20240610211725523">
+
+<img src="/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610211737010.png" class="" title="image-20240610211737010">
+
+
+
+<h4 id="3-5-修改实例端口"><a href="#3-5-修改实例端口" class="headerlink" title="3.5 修改实例端口"></a>3.5 修改实例端口</h4><p>点击实例 - 系统属性<br>http-listener-1_port：修改为8080（这个是http协议访问）<br>http-listener-2_port：（这个是https协议访问，如需要此访问请更改）</p>
+<img src="/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610211821072.png" class="" title="image-20240610211821072">
+
+
+
+<p>OK，到这里就是宝兰德的基础配置就结束了。</p>
+<p>后边可以进行应用的部署了。</p>
+<h3 id="4-部署应用注意项"><a href="#4-部署应用注意项" class="headerlink" title="4 部署应用注意项"></a>4 部署应用注意项</h3><p>BES集群下有实例，应用是在实例中生效的，所以改动应用的时候请直接到实例目录下的application目录下去改。每部署一次应用，就会拷贝一次应用目录到它的实例node&#x2F;application下。</p>
+<h4 id="4-1-重启实例出现某个实例启动失败"><a href="#4-1-重启实例出现某个实例启动失败" class="headerlink" title="4.1 重启实例出现某个实例启动失败"></a>4.1 重启实例出现某个实例启动失败</h4><p>在应用无报错的前提下，4个实例，正常重启实例，会出现1个或者2个实例启动报错。从应用的错误日志中查看原因，会出现一些连接不上数据源的报错，导致实例的错误日志会抛出应用错误。</p>
+<p>由于数据源连接数量太少导致，每个实例都需要一定的连接数。此时，需要到中间件的JDBC数据源配置处，修改池的连接数。生产环境上修改为默认的两倍数据，实例均正常启动。后续如果出现此情况，可根据实际情况，扩大连接数即可。</p>
+<img src="/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E4%B8%9C%E6%96%B9%E9%80%9A%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8/image-20240610212153631.png" class="" title="image-20240610212153631">
+
+
+
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E5%AE%9E%E6%96%BD/" rel="tag"># 实施</a>
+              <a href="/tags/%E4%B8%AD%E9%97%B4%E4%BB%B6/" rel="tag"># 中间件</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2024/06/06/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-%E8%BE%BE%E6%A2%A6%E6%95%B0%E6%8D%AE%E5%BA%93%E7%9A%84%E5%AE%89%E8%A3%85/" rel="prev" title="实施部署-达梦数据库linux版的安装（二）">
+                  <i class="fa fa-angle-left"></i> 实施部署-达梦数据库linux版的安装（二）
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-Nginx%E5%9C%A8%E9%A1%B9%E7%9B%AE%E4%B8%8A%E7%9A%84%E5%BA%94%E7%94%A8/" rel="next" title="实施部署-Nginx在项目上的应用（四）">
+                  实施部署-Nginx在项目上的应用（四） <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2024</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Wei Qi</span>
+  </div>
+<div class="wordcount">
+  <span class="post-meta-item">
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-line"></i>
+    </span>
+    <span title="站点总字数">12k</span>
+  </span>
+  <span class="post-meta-item">
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">45 分钟</span>
+  </span>
+</div>
+<div class="busuanzi-count">
+    <span class="post-meta-item" id="busuanzi_container_site_uv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/sidebar.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+
+  
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+
+</body>
+</html>
