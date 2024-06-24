@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/touxiang.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/touxiang.ico">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/touxiang.ico">
+  <link rel="mask-icon" href="/images/touxiang.ico" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha256-XOqroi11tY4EFQMR9ZYwZWKj5ZXiftSx36RRuC3anlA=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"weiqifun.github.io","root":"/","images":"/images","scheme":"Pisces","darkmode":false,"version":"8.20.0","exturl":true,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"copycode":{"enable":true,"style":"default","show_result":true},"fold":{"enable":false,"height":500},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="最近异常交易的项目中，使用到了kafka ，用来实时推送实时成交、委托流水、组合持仓、行情等等数据到自研的平台上做数据监控。那么我这边需要做的内容：将上游的数据直接推送到kafka上，给下游的应用消费kafka数据。这个过程中也遇到了一些问题，因为也是第一次接触kafka ，平且是在实际的项目中使用的，这里经验对我来说还是很宝贵的，所以在这里做一个基础知识、项目中遇到的问题、对应的解决方案的记录。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="kafka-基础知识与实际项目的问题">
+<meta property="og:url" content="https://weiqifun.github.io/2024/06/24/kafka-%E5%9F%BA%E7%A1%80%E6%93%8D%E4%BD%9C%E4%B8%8E%E9%85%8D%E7%BD%AE/">
+<meta property="og:site_name" content="WeiQi Blog">
+<meta property="og:description" content="最近异常交易的项目中，使用到了kafka ，用来实时推送实时成交、委托流水、组合持仓、行情等等数据到自研的平台上做数据监控。那么我这边需要做的内容：将上游的数据直接推送到kafka上，给下游的应用消费kafka数据。这个过程中也遇到了一些问题，因为也是第一次接触kafka ，平且是在实际的项目中使用的，这里经验对我来说还是很宝贵的，所以在这里做一个基础知识、项目中遇到的问题、对应的解决方案的记录。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/24/kafka-%E5%9F%BA%E7%A1%80%E6%93%8D%E4%BD%9C%E4%B8%8E%E9%85%8D%E7%BD%AE/image-20240624230047447.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/24/kafka-%E5%9F%BA%E7%A1%80%E6%93%8D%E4%BD%9C%E4%B8%8E%E9%85%8D%E7%BD%AE/image-20240624234319800.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/24/kafka-%E5%9F%BA%E7%A1%80%E6%93%8D%E4%BD%9C%E4%B8%8E%E9%85%8D%E7%BD%AE/image-20240624234112411.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/24/kafka-%E5%9F%BA%E7%A1%80%E6%93%8D%E4%BD%9C%E4%B8%8E%E9%85%8D%E7%BD%AE/image-20240624234427279.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/24/kafka-%E5%9F%BA%E7%A1%80%E6%93%8D%E4%BD%9C%E4%B8%8E%E9%85%8D%E7%BD%AE/image-20240624234731914.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/24/kafka-%E5%9F%BA%E7%A1%80%E6%93%8D%E4%BD%9C%E4%B8%8E%E9%85%8D%E7%BD%AE/image-20240624234814208.png">
+<meta property="og:image" content="https://weiqifun.github.io/2024/06/24/kafka-%E5%9F%BA%E7%A1%80%E6%93%8D%E4%BD%9C%E4%B8%8E%E9%85%8D%E7%BD%AE/image-20240624235112007.png">
+<meta property="article:published_time" content="2024-06-24T14:03:22.000Z">
+<meta property="article:modified_time" content="2024-06-24T16:05:50.616Z">
+<meta property="article:author" content="Wei Qi">
+<meta property="article:tag" content="kafka">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://weiqifun.github.io/2024/06/24/kafka-%E5%9F%BA%E7%A1%80%E6%93%8D%E4%BD%9C%E4%B8%8E%E9%85%8D%E7%BD%AE/image-20240624230047447.png">
+
+
+<link rel="canonical" href="https://weiqifun.github.io/2024/06/24/kafka-%E5%9F%BA%E7%A1%80%E6%93%8D%E4%BD%9C%E4%B8%8E%E9%85%8D%E7%BD%AE/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://weiqifun.github.io/2024/06/24/kafka-%E5%9F%BA%E7%A1%80%E6%93%8D%E4%BD%9C%E4%B8%8E%E9%85%8D%E7%BD%AE/","path":"2024/06/24/kafka-基础操作与配置/","title":"kafka-基础知识与实际项目的问题"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>kafka-基础知识与实际项目的问题 | WeiQi Blog</title>
+  
+
+
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">WeiQi Blog</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">前进 & 思考</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#kafka-%E4%B8%BB%E8%A6%81%E7%BB%84%E4%BB%B6"><span class="nav-number">1.</span> <span class="nav-text">kafka 主要组件</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-broker-%E6%9C%8D%E5%8A%A1%E5%99%A8"><span class="nav-number">1.1.</span> <span class="nav-text">1 broker  服务器</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-producer-%E7%94%9F%E4%BA%A7%E8%80%85"><span class="nav-number">1.2.</span> <span class="nav-text">2 producer 生产者</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-topic-%E4%B8%BB%E9%A2%98"><span class="nav-number">1.3.</span> <span class="nav-text">3 topic 主题</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-partition-%E5%88%86%E5%8C%BA"><span class="nav-number">1.4.</span> <span class="nav-text">4 partition 分区</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-consumer-%E6%B6%88%E8%B4%B9%E8%80%85"><span class="nav-number">1.5.</span> <span class="nav-text">5 consumer 消费者</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-consumer-group-%E6%B6%88%E8%B4%B9%E8%80%85"><span class="nav-number">1.6.</span> <span class="nav-text">6 consumer group 消费者</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#6-1-%E6%B6%88%E8%B4%B9%E8%80%85%E7%BB%84%E4%B8%8E%E5%88%86%E5%8C%BA%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="nav-number">1.6.1.</span> <span class="nav-text">6.1 消费者组与分区的关系</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-partition-replicas-%E5%88%86%E5%8C%BA%E5%89%AF%E6%9C%AC"><span class="nav-number">1.7.</span> <span class="nav-text">7 partition replicas 分区副本</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#8-segment-%E6%96%87%E4%BB%B6"><span class="nav-number">1.8.</span> <span class="nav-text">8 segment 文件</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#kafka-%E5%9F%BA%E7%A1%80%E6%93%8D%E4%BD%9C"><span class="nav-number">2.</span> <span class="nav-text">kafka 基础操作</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-kafka%E5%90%AF%E5%81%9C"><span class="nav-number">2.1.</span> <span class="nav-text">1 kafka启停</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-%E5%88%9B%E5%BB%BA-topic"><span class="nav-number">2.2.</span> <span class="nav-text">2 创建 topic</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#2-1-%E5%88%A0%E9%99%A4-topic"><span class="nav-number">2.2.1.</span> <span class="nav-text">2.1 删除 topic</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-2-%E5%A2%9E%E5%8A%A0-topic-partition"><span class="nav-number">2.2.2.</span> <span class="nav-text">2.2 增加 topic partition</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-%E6%9F%A5%E7%9C%8B-topic-%E6%95%B0%E6%8D%AE"><span class="nav-number">2.3.</span> <span class="nav-text">3 查看 topic 数据</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-%E6%9F%A5%E8%AF%A2-topic-%E5%88%97%E8%A1%A8"><span class="nav-number">2.4.</span> <span class="nav-text">4 查询 topic 列表</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#kafka-%E7%9B%B8%E5%85%B3%E9%97%AE%E9%A2%98%E5%8F%8A%E8%A7%A3%E5%86%B3%E6%96%B9%E6%A1%88"><span class="nav-number">3.</span> <span class="nav-text">kafka 相关问题及解决方案</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-%E6%8A%A5%E9%94%99-Error-while-fetching-metadata-with-correlation-id"><span class="nav-number">3.1.</span> <span class="nav-text">1 报错 Error while fetching metadata with correlation id</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-%E6%8A%A5%E9%94%99-exiting-abnormally"><span class="nav-number">3.2.</span> <span class="nav-text">2 报错 exiting abnormally</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-%E6%8A%A5%E9%94%99-during-kafkaserver-startup"><span class="nav-number">3.3.</span> <span class="nav-text">3 报错 during kafkaserver startup</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-%E6%96%B0%E5%A2%9E%E6%B6%88%E8%B4%B9%E8%80%85%E7%BB%84%E6%97%B6%E6%95%B0%E6%8D%AE%E6%98%BE%E7%A4%BA%E4%B8%8D%E4%B8%80%E8%87%B4"><span class="nav-number">3.4.</span> <span class="nav-text">4 新增消费者组时数据显示不一致</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-%E9%85%8D%E7%BD%AE%E6%B5%81%E6%B0%B4%E5%AD%97%E6%AE%B5"><span class="nav-number">3.5.</span> <span class="nav-text">5 配置流水字段</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-%E9%85%8D%E7%BD%AE%E4%B8%BB%E9%94%AE"><span class="nav-number">3.6.</span> <span class="nav-text">6 配置主键</span></a></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Wei Qi"
+      src="/images/happydog.png">
+  <p class="site-author-name" itemprop="name">Wei Qi</p>
+  <div class="site-description" itemprop="description">一路走来，有点艰难</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">8</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">7</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL3dlaXFpZnVuL3dlaXFpZnVuLmdpdGh1Yi5pbw==" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;weiqifun&#x2F;weiqifun.github.io"><i class="fab fa-github fa-fw"></i>GitHub</span>
+      </span>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://weiqifun.github.io/2024/06/24/kafka-%E5%9F%BA%E7%A1%80%E6%93%8D%E4%BD%9C%E4%B8%8E%E9%85%8D%E7%BD%AE/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/happydog.png">
+      <meta itemprop="name" content="Wei Qi">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="WeiQi Blog">
+      <meta itemprop="description" content="一路走来，有点艰难">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="kafka-基础知识与实际项目的问题 | WeiQi Blog">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          kafka-基础知识与实际项目的问题
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2024-06-24 22:03:22" itemprop="dateCreated datePublished" datetime="2024-06-24T22:03:22+08:00">2024-06-24</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">更新于</span>
+      <time title="修改时间：2024-06-25 00:05:50" itemprop="dateModified" datetime="2024-06-25T00:05:50+08:00">2024-06-25</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index"><span itemprop="name">大数据</span></a>
+        </span>
+          ，
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/kafka/" itemprop="url" rel="index"><span itemprop="name">kafka</span></a>
+        </span>
+    </span>
+
+  
+    <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye"></i>
+      </span>
+      <span class="post-meta-item-text">阅读次数：</span>
+      <span id="busuanzi_value_page_pv"></span>
+    </span>
+    <span class="post-meta-break"></span>
+    <span class="post-meta-item" title="本文字数">
+      <span class="post-meta-item-icon">
+        <i class="far fa-file-word"></i>
+      </span>
+      <span class="post-meta-item-text">本文字数：</span>
+      <span>1.8k</span>
+    </span>
+    <span class="post-meta-item" title="阅读时长">
+      <span class="post-meta-item-icon">
+        <i class="far fa-clock"></i>
+      </span>
+      <span class="post-meta-item-text">阅读时长 &asymp;</span>
+      <span>7 分钟</span>
+    </span>
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>最近异常交易的项目中，使用到了<code>kafka</code> ，用来实时推送实时成交、委托流水、组合持仓、行情等等数据到自研的平台上做数据监控。那么我这边需要做的内容：将上游的数据直接推送到kafka上，给下游的应用消费kafka数据。这个过程中也遇到了一些问题，因为也是第一次接触<code>kafka</code> ，平且是在实际的项目中使用的，这里经验对我来说还是很宝贵的，所以在这里做一个基础知识、项目中遇到的问题、对应的解决方案的记录。在项目上主要是使用<code>kafka</code> 读取数据，做一个流式处理，供下游应用使用数据。</p>
+<span id="more"></span>
+
+<h2 id="kafka-主要组件"><a href="#kafka-主要组件" class="headerlink" title="kafka 主要组件"></a>kafka 主要组件</h2><h3 id="1-broker-服务器"><a href="#1-broker-服务器" class="headerlink" title="1 broker  服务器"></a>1 broker  服务器</h3><p>kafka集群的服务器，一台服务器就是一个 broker 。</p>
+<h3 id="2-producer-生产者"><a href="#2-producer-生产者" class="headerlink" title="2 producer 生产者"></a>2 producer 生产者</h3><p>producer 主要是用于生产消息，是 kafka 当中的消息生产者，生产的消息通过 topic 进行归类，保存到 kafka 的 broker 里面去。</p>
+<p>项目上我们的数据平台就是作为一个生产者，通过将上游数据推送到topic里。</p>
+<h3 id="3-topic-主题"><a href="#3-topic-主题" class="headerlink" title="3 topic 主题"></a>3 topic 主题</h3><p>kafka 将消息（数据）以 topic 为单位进行归类。在项目里边，一张表推到一个 topic ，需要推几张表就是建几个 topic 。</p>
+<h3 id="4-partition-分区"><a href="#4-partition-分区" class="headerlink" title="4 partition 分区"></a>4 partition 分区</h3><p>kafka 里，一个 topic 是可以有多个分区。比如说创建一个有 3 个分区的 topic ，那么整个 topic 的数据都存放在这 3 个分区内（就是说每个分区都存放一部分 topic 的数据）。</p>
+<h3 id="5-consumer-消费者"><a href="#5-consumer-消费者" class="headerlink" title="5 consumer 消费者"></a>5 consumer 消费者</h3><p>消费者主要就是消费 kafka topic 里的数据</p>
+<h3 id="6-consumer-group-消费者"><a href="#6-consumer-group-消费者" class="headerlink" title="6 consumer group 消费者"></a>6 consumer group 消费者</h3><p>消费者组里可以有多个消费者，同一个组里的消费者，对于同一条数据，只能消费 1 次。</p>
+<p>比如：一个消费者组里有 A 和 B 两个消费者，A 消费了 topic 里的第一条数据，那么 B 就无法消费该 topic 里的第一条数据，因为已经被消费过了。</p>
+<p>但是不同的消费者组，还是可以共同消费某个 topic 里的数据的。</p>
+<h4 id="6-1-消费者组与分区的关系"><a href="#6-1-消费者组与分区的关系" class="headerlink" title="6.1 消费者组与分区的关系"></a>6.1 消费者组与分区的关系</h4><img src="/2024/06/24/kafka-%E5%9F%BA%E7%A1%80%E6%93%8D%E4%BD%9C%E4%B8%8E%E9%85%8D%E7%BD%AE/image-20240624230047447.png" class="" title="image-20240624230047447">
+
+<p>如果 topic 只有 2 个分区，消费者组里有 4 个消费者，那么也只能供 2 个消费者消费。</p>
+<p>如果 topic 有 4 个分区，消费者组里的 4 个消费者都能消费数据，并发量就上来了。</p>
+<p>所以 topic 里的分区越多，消费的并发越高，处理速度也越快。</p>
+<h3 id="7-partition-replicas-分区副本"><a href="#7-partition-replicas-分区副本" class="headerlink" title="7 partition replicas 分区副本"></a>7 partition replicas 分区副本</h3><p>每个分区的副本，用来控制数据保存在几个 broker 服务器上，通常是几台 broker 就设置几个副本。</p>
+<h3 id="8-segment-文件"><a href="#8-segment-文件" class="headerlink" title="8 segment 文件"></a>8 segment 文件</h3><p>一个 partition 分区中由多个 segment 文件组成的。每个 segment 文件又包含了 <code>.log</code> 文件和<code>.index</code> 文件，<code>.log</code> 文件是存放推送的数据，<code>.index</code> 文件存放数据的索引值，用来加快数据的查询速度的。</p>
+<p><code>.index</code> 文件里存的索引值，是与<code>.log</code>文件里的数据位置是对应的。</p>
+<figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># .index 是 key-value 存放方式</span></span><br><span class="line"><span class="number">1</span>,<span class="number">0</span>	<span class="comment"># 对应 .log 的第一条数据，值是0</span></span><br><span class="line"><span class="number">2</span>,<span class="number">2</span>	<span class="comment"># 对应 .log 的第二条数据，值是2</span></span><br><span class="line"><span class="number">3</span>,<span class="number">9</span>	<span class="comment"># 对应 .log 的第三条数据，值是9</span></span><br></pre></td></tr></table></figure>
+
+
+
+<p><code>.log</code> 文件里会记录<code>offset</code> 偏移量，用于标记消费者读取消息的位置。</p>
+<h2 id="kafka-基础操作"><a href="#kafka-基础操作" class="headerlink" title="kafka 基础操作"></a>kafka 基础操作</h2><h3 id="1-kafka启停"><a href="#1-kafka启停" class="headerlink" title="1 kafka启停"></a>1 kafka启停</h3><p>kafka 与 zookeeper 强依赖，启动 kafka 之前必须先启动 zookeeper ，否则会报错的</p>
+<figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># zookeeper 启动，后边接配置文件</span></span><br><span class="line">./zookeeper-server-start.sh ../config/zookeeper.properties</span><br><span class="line"><span class="comment"># zookeeper 停止</span></span><br><span class="line">./zookeeper-server-stop.sh</span><br><span class="line"></span><br><span class="line"><span class="comment"># kafka 启动，后边接配置文件</span></span><br><span class="line">./kafka-server-start.sh ../config/server.properties</span><br><span class="line"><span class="comment"># kafka 停止</span></span><br><span class="line">./kafka-server-stop.sh</span><br></pre></td></tr></table></figure>
+
+<img src="/2024/06/24/kafka-%E5%9F%BA%E7%A1%80%E6%93%8D%E4%BD%9C%E4%B8%8E%E9%85%8D%E7%BD%AE/image-20240624234319800.png" class="" title="image-20240624234319800">
+
+
+
+<h3 id="2-创建-topic"><a href="#2-创建-topic" class="headerlink" title="2 创建 topic"></a>2 创建 topic</h3><figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 创建语句 模板</span></span><br><span class="line">./kafka-topics.sh --create --bootstrap-server <span class="number">10.84</span>.<span class="number">0</span>.<span class="number">1</span>:<span class="number">9092</span> --replication-factor <span class="number">1</span> --partitions <span class="number">1</span> --topic topic_name</span><br><span class="line"><span class="comment"># bootstrap-server 指定 kafka 服务器地址和端口</span></span><br><span class="line"><span class="comment"># replication-factor 指定分区的副本个数</span></span><br><span class="line"><span class="comment"># partitions 指定topic的分区个数</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="2-1-删除-topic"><a href="#2-1-删除-topic" class="headerlink" title="2.1 删除 topic"></a>2.1 删除 topic</h4><figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./kafka-topics.sh --bootstrap-server <span class="number">10.84</span>.<span class="number">0</span>.<span class="number">1</span>:<span class="number">2181</span> --<span class="keyword">delete</span> --topic topic_name</span><br></pre></td></tr></table></figure>
+
+<h4 id="2-2-增加-topic-partition"><a href="#2-2-增加-topic-partition" class="headerlink" title="2.2 增加 topic partition"></a>2.2 增加 topic partition</h4><figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./kafka-topics.sh --zookeeper <span class="number">10.84</span>.<span class="number">0</span>.<span class="number">1</span>:<span class="number">2181</span> --alter --topic topic_name --partition <span class="number">2</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="3-查看-topic-数据"><a href="#3-查看-topic-数据" class="headerlink" title="3 查看 topic 数据"></a>3 查看 topic 数据</h3><figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">./kafka-console-consumer.sh --bootstrap-server <span class="number">10.84</span>.<span class="number">0</span>.<span class="number">1</span>:<span class="number">9092</span> --topic your_topic_name --from-beginning [--max-messages <span class="number">10</span>]</span><br><span class="line"><span class="comment"># --max-messages 查看几条消息</span></span><br><span class="line"><span class="comment"># --from-beginning 查看最新的消息</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="4-查询-topic-列表"><a href="#4-查询-topic-列表" class="headerlink" title="4 查询 topic 列表"></a>4 查询 topic 列表</h3><figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./kafka-topics.sh --list --zookeeper localhost</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="kafka-相关问题及解决方案"><a href="#kafka-相关问题及解决方案" class="headerlink" title="kafka 相关问题及解决方案"></a>kafka 相关问题及解决方案</h2><h3 id="1-报错-Error-while-fetching-metadata-with-correlation-id"><a href="#1-报错-Error-while-fetching-metadata-with-correlation-id" class="headerlink" title="1 报错 Error while fetching metadata with correlation id"></a>1 报错 Error while fetching metadata with correlation id</h3><p>这个报错是在 kafka 查看 topic 里的数据时，出现的错误。查了下资料，它是无法识别到 hostname 导致。</p>
+<p><strong>解决方案：</strong></p>
+<p>修改 <code>server.properties</code> 配置文件，增加 listeners 。默认的配置是没有这两行的，手动加上。</p>
+<img src="/2024/06/24/kafka-%E5%9F%BA%E7%A1%80%E6%93%8D%E4%BD%9C%E4%B8%8E%E9%85%8D%E7%BD%AE/image-20240624234112411.png" class="" title="image-20240624234112411">
+
+
+
+<h3 id="2-报错-exiting-abnormally"><a href="#2-报错-exiting-abnormally" class="headerlink" title="2 报错 exiting abnormally"></a>2 报错 exiting abnormally</h3><p>这个是在启动 zookeeper 的时候出现，报错如下图所示：</p>
+<img src="/2024/06/24/kafka-%E5%9F%BA%E7%A1%80%E6%93%8D%E4%BD%9C%E4%B8%8E%E9%85%8D%E7%BD%AE/image-20240624234427279.png" class="" title="image-20240624234427279">
+
+<p><strong>解决方案：</strong></p>
+<p>在<code>zookeeper.properties</code>配置文件中，有个 <code>dataDir=/path</code> ，把 <code>/path</code> 路径下的<code>version-2</code> 文件夹删掉，然后重新启动即可。</p>
+<h3 id="3-报错-during-kafkaserver-startup"><a href="#3-报错-during-kafkaserver-startup" class="headerlink" title="3 报错 during kafkaserver startup"></a>3 报错 during kafkaserver startup</h3><p>启动 kafka 的时候出现，报错如下图所示：</p>
+<img src="/2024/06/24/kafka-%E5%9F%BA%E7%A1%80%E6%93%8D%E4%BD%9C%E4%B8%8E%E9%85%8D%E7%BD%AE/image-20240624234731914.png" class="" title="image-20240624234731914">
+
+<p>注意这个：</p>
+<img src="/2024/06/24/kafka-%E5%9F%BA%E7%A1%80%E6%93%8D%E4%BD%9C%E4%B8%8E%E9%85%8D%E7%BD%AE/image-20240624234814208.png" class="" title="image-20240624234814208">
+
+<p>由于启动的 id 和 <code>meta.properties</code> 里边的 id 不一致导致报错。通常是因为关闭 kafka 的时候出现了异常（虽然不知道有什么异常）</p>
+<p><strong>解决方案：</strong></p>
+<figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 找到该文件</span></span><br><span class="line">find / -name <span class="string">&quot;meta.properties&quot;</span></span><br><span class="line"><span class="comment"># 修改里边的 cluster.id= 一串字符串id</span></span><br></pre></td></tr></table></figure>
+
+<img src="/2024/06/24/kafka-%E5%9F%BA%E7%A1%80%E6%93%8D%E4%BD%9C%E4%B8%8E%E9%85%8D%E7%BD%AE/image-20240624235112007.png" class="" title="image-20240624235112007">
+
+<p>修改为报错里出现的那个括号里的一串id即可。</p>
+<h3 id="4-新增消费者组时数据显示不一致"><a href="#4-新增消费者组时数据显示不一致" class="headerlink" title="4 新增消费者组时数据显示不一致"></a>4 新增消费者组时数据显示不一致</h3><p>在做迁移的时候，为了对比迁移前后的数据量是否一致。在迁移后的环境中新增一个消费者组 B，用来消费同一个 topic 数据，发现跟迁移前的消费者组 A 的数据不一致。</p>
+<p>消费者组A的数据是当天的数据，但是消费者组B的数据却是几天前的。为啥？</p>
+<p>kafka每个消费者组都是独立消费数据，只要是消费同一个 topic，那么数据肯定是一致的。由于一般 kafka 的配置是保留 7 天的数据，所以在新增的消费者组消费同一个 topic 时，它会重头开始消费，即从所以就出现了，消费者组B里是几天前的数据，这是无可避免的。</p>
+<h3 id="5-配置流水字段"><a href="#5-配置流水字段" class="headerlink" title="5 配置流水字段"></a>5 配置流水字段</h3><p>由于当时第一次配置的时候，没有配置流水字段，导致了推送数据到 kafka topic 的任务，每次实时推送全量数据过去，导致了数据平台每次启动推送 kafka 的任务，就会迅速占满服务器内存，然后应用挂掉。</p>
+<p>后边加入流水字段，将任务配置为增量推送，内存占比就好了很多。</p>
+<p>通常是用线性递增的字段，作为流水字段。比如，实时成交表里有成交时间，委托流水表里有委托时间。</p>
+<h3 id="6-配置主键"><a href="#6-配置主键" class="headerlink" title="6 配置主键"></a>6 配置主键</h3><p>通过配置主键用来去重，避免推送重复数据到 topic 里。比如：实时成交表里的成交编号，委托流水表里的委托编号，编号是唯一的，那么可以使用编号作为主键。</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/kafka/" rel="tag"># kafka</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2024/06/10/%E5%AE%9E%E6%96%BD%E9%83%A8%E7%BD%B2-Nginx%E5%9C%A8%E9%A1%B9%E7%9B%AE%E4%B8%8A%E7%9A%84%E5%BA%94%E7%94%A8/" rel="prev" title="实施部署-Nginx在项目上的应用（四）">
+                  <i class="fa fa-angle-left"></i> 实施部署-Nginx在项目上的应用（四）
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2024</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Wei Qi</span>
+  </div>
+<div class="wordcount">
+  <span class="post-meta-item">
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-line"></i>
+    </span>
+    <span title="站点总字数">14k</span>
+  </span>
+  <span class="post-meta-item">
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">52 分钟</span>
+  </span>
+</div>
+<div class="busuanzi-count">
+    <span class="post-meta-item" id="busuanzi_container_site_uv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/sidebar.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+
+  
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+
+</body>
+</html>
